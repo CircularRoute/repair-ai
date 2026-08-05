@@ -134,7 +134,7 @@ test('otto settings defaults', () => {
   assert.equal(s.proactivePerDay, 3);
   assert.equal(s.spacingHours, 3);
   assert.equal(s.resetMin, 60);
-  assert.equal(s.voice, 'echo');
+  assert.equal(s.voice, 'verse'); // ruling 20: echo sounded robotic
   assert.equal(s.muted, false);
   assert.deepEqual(s.voiceLangs, ['en', 'ru', 'az']);
 });
@@ -180,4 +180,23 @@ test('generateReply check directive parsing', async () => {
   const match = /^\[CHECK:(mark|bob)\]\s*(.+)/s.exec(sample);
   assert.equal(match[1], 'mark');
   assert.equal(match[2], 'what do other shops charge for diagnostics?');
+});
+
+test('ruling 19: Opus escalation is due only deep in an exchange and only when enabled', async () => {
+  const { escalationDue, exchangeDepth, recordOttoReply, ottoSettings } = await import('../lib/otto-engine.mjs');
+  const on = { escalate: true, escalateAfter: 3 };
+  assert.equal(escalationDue(on, 0), false); // 1st reply: never
+  assert.equal(escalationDue(on, 1), false); // 2nd reply: not yet
+  assert.equal(escalationDue(on, 2), true);  // 3rd reply: due
+  assert.equal(escalationDue(on, 5), true);
+  assert.equal(escalationDue({ escalate: false, escalateAfter: 3 }, 5), false);
+
+  const db = freshDb();
+  assert.equal(ottoSettings(db).escalate, true); // on by default
+  assert.equal(ottoSettings(db).escalateAfter, 3);
+  assert.equal(exchangeDepth(db, 'p_e'), 0);
+  recordOttoReply(db, 'p_e');
+  recordOttoReply(db, 'p_e');
+  assert.equal(exchangeDepth(db, 'p_e'), 2);
+  assert.equal(exchangeDepth(db, 'someone_else'), 0);
 });

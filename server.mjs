@@ -1147,6 +1147,7 @@ const server = createServer(async (req, res) => {
         ottoMuted: s.muted, ottoCap: s.cap, ottoProactivePerDay: s.proactivePerDay,
         ottoSpacingHours: s.spacingHours, ottoResetMin: s.resetMin,
         ottoVoice: s.voice, ottoVoiceLangs: s.voiceLangs.join(','),
+        ottoEscalate: s.escalate, ottoEscalateAfter: s.escalateAfter,
         bobFable: getSetting(db, 'bobFable', '0') === '1',
         digestHourCT: Number(getSetting(db, 'digestHourCT', 22)),
         synthesisHourCT: Number(getSetting(db, 'synthesisHourCT', 23)),
@@ -1166,8 +1167,9 @@ const server = createServer(async (req, res) => {
         setSetting(db, 'ottoVoiceLangs', body.ottoVoiceLangs.split(',').map((s) => s.trim()).filter((l) => ['en', 'ru', 'az'].includes(l)).join(','));
       }
       if (body.bobFable !== undefined) setSetting(db, 'bobFable', body.bobFable ? '1' : '0');
+      if (body.ottoEscalate !== undefined) setSetting(db, 'ottoEscalate', body.ottoEscalate ? '1' : '0');
       const numeric = {
-        ottoSpacingHours: [1, 24], ottoResetMin: [10, 240],
+        ottoSpacingHours: [1, 24], ottoResetMin: [10, 240], ottoEscalateAfter: [2, 10],
         digestHourCT: [0, 23], synthesisHourCT: [0, 23],
         synthesisMinMessages: [1, 50], synthesisMinInsights: [0, 20],
         insightsIntervalHours: [1, 72], markRefreshDays: [1, 30],
@@ -1176,7 +1178,7 @@ const server = createServer(async (req, res) => {
         const v = Number(body[key]);
         if (body[key] !== undefined && Number.isFinite(v) && v >= min && v <= max) setSetting(db, key, v);
       }
-      if (typeof body.ottoVoice === 'string' && ['echo', 'onyx', 'ash', 'verse'].includes(body.ottoVoice)) {
+      if (typeof body.ottoVoice === 'string' && ['echo', 'onyx', 'ash', 'verse', 'ballad'].includes(body.ottoVoice)) {
         setSetting(db, 'ottoVoice', body.ottoVoice);
       }
       logEvent(db, 'otto.settings_changed', null);

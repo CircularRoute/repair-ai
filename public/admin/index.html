@@ -248,11 +248,17 @@
           <input id="otto-reset" type="number" min="10" max="240" class="inline-num">
           <span class="muted small">Voice:</span>
           <select id="otto-voice-select">
-            <option value="echo">echo (clear, friendly)</option>
+            <option value="verse">verse (natural, expressive)</option>
+            <option value="ballad">ballad (calm, warm)</option>
+            <option value="echo">echo (clear, flat)</option>
             <option value="onyx">onyx (deep)</option>
             <option value="ash">ash (brisk)</option>
-            <option value="verse">verse</option>
           </select>
+        </div>
+        <div class="row">
+          <label class="check"><input type="checkbox" id="otto-escalate"> Upgrade hard turns to Opus in deep exchanges</label>
+          <span class="muted small">from reply:</span>
+          <input id="otto-escalate-after" type="number" min="2" max="10" class="inline-num">
         </div>
         <div class="row checks">
           <span class="muted small">Voice replies in:</span>

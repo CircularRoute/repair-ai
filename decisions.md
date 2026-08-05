@@ -166,3 +166,26 @@ the parent folder; no Render API keys.
     ruling 10; everything else in ruling 10 stands unchanged). Applied
     immediately on production via the admin API and made the new code
     default.
+
+19. 2026-08-05 - Otto dialogue quality and model escalation:
+    - Otto must converse like a colleague who is learning, not an
+      interviewer: first show understanding of what was just said (react,
+      reflect it back, connect it to known findings), question optional.
+      Never a question after two question-ending replies in a row; never
+      re-ask anything already answered in the conversation or the findings
+      (a repeated question is a defect).
+    - Names: in a one-on-one stretch use NO name at all (a name in every
+      message reads robotic); by name only when several members are active
+      or when re-engaging after a gap, never in consecutive replies.
+    - Model escalation: when an exchange gets deep (from Otto's 3rd reply by
+      default, admin-tunable 2-10) AND the turn genuinely needs analytical
+      power (judged by a cheap Haiku check: tradeoffs, root causes,
+      multi-step process reasoning, numbers), Otto's reply is generated on
+      Opus 5 instead of Sonnet 5. Toggle + threshold in Agent controls, on
+      by default. Escalations are logged and metered like everything else.
+
+20. 2026-08-05 - Otto's TTS voice: echo sounded robotic. Otto's default
+    voice is now verse, and every agent voice note carries TTS style
+    instructions (relaxed colleague leaving a voice note, natural pace,
+    never announcer-like). Voice remains admin-selectable (verse, ballad,
+    echo, onyx, ash); Bob=onyx and Mark=ash stay as ruled in the spec map.

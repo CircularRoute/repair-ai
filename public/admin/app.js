@@ -736,6 +736,8 @@ async function loadAgentSettings() {
   document.getElementById('otto-spacing').value = s.ottoSpacingHours;
   document.getElementById('otto-reset').value = s.ottoResetMin;
   document.getElementById('otto-voice-select').value = s.ottoVoice;
+  document.getElementById('otto-escalate').checked = s.ottoEscalate;
+  document.getElementById('otto-escalate-after').value = s.ottoEscalateAfter;
   document.getElementById('digest-hour').value = s.digestHourCT;
   document.getElementById('synthesis-hour').value = s.synthesisHourCT;
   document.getElementById('synthesis-min-msgs').value = s.synthesisMinMessages;
@@ -757,6 +759,8 @@ document.getElementById('agent-save').addEventListener('click', async () => {
       ottoSpacingHours: Number(document.getElementById('otto-spacing').value),
       ottoResetMin: Number(document.getElementById('otto-reset').value),
       ottoVoice: document.getElementById('otto-voice-select').value,
+      ottoEscalate: document.getElementById('otto-escalate').checked,
+      ottoEscalateAfter: Number(document.getElementById('otto-escalate-after').value),
       ottoVoiceLangs: [...document.querySelectorAll('.otto-voice:checked')].map((c) => c.value).join(','),
       bobFable: document.getElementById('bob-fable').checked,
       digestHourCT: Number(document.getElementById('digest-hour').value),

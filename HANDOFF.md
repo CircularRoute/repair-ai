@@ -40,8 +40,12 @@ this document is the source of truth for what exists.
   explicit reply, or first message after Otto; nothing else), conversation cap
   (default 4) ending with the founder's verbatim line in EN/RU/AZ, proactive
   budget (3/day, 3h spacing, built-in 10-minute courtesy lull, 8h staleness
-  guard), name discipline, rationed TTS voice replies (echo), behavioural eval
-  (tools/otto-eval.mjs, 8 scenarios incl. ruling-9 manipulation baits).
+  guard), behavioural eval (tools/otto-eval.mjs, 8 scenarios incl. ruling-9
+  manipulation baits). Dialogue per ruling 19: colleague not interviewer
+  (show understanding first, question optional, never repeat questions, no
+  name in one-on-one stretches), with Opus escalation for hard turns deep in
+  an exchange (from reply 3 by default, Haiku-judged, admin-tunable toggle).
+  TTS voice per ruling 20: verse with natural-delivery style instructions.
 - Phase 4: Bob. Five living documents (problem-map, opportunity-register,
   product-concepts incl. the Lead-to-Order Bridge, roadmap, build-specs) plus
   memo and digest, versioned with provenance in `documents`; real-time admin
