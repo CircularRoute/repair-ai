@@ -342,6 +342,17 @@ async function loadAgentChat(agent, boxId, emptyLine) {
 const loadBobChat = () => loadAgentChat('bob', 'bob-chat', 'Ask me anything about what the group has said so far, or teach me how you want me to work. I cite my sources.');
 const loadOttoChat = () => loadAgentChat('otto', 'otto-chat', 'Ask me what has been happening in the group, or tell me what to do differently there.');
 
+// Chats load while their cards are collapsed, where scrolling is a no-op;
+// snap to the latest message whenever a card is opened.
+for (const [detailsId, boxId] of [['otto-details', 'otto-chat'], ['bob-details', 'bob-chat'], ['mark-details', 'mark-chat']]) {
+  document.getElementById(detailsId).addEventListener('toggle', (e) => {
+    if (e.target.open) {
+      const box = document.getElementById(boxId);
+      box.scrollTop = box.scrollHeight;
+    }
+  });
+}
+
 async function loadOttoDirectives() {
   const data = await api('/api/admin/otto/directives');
   const box = document.getElementById('otto-directives');
