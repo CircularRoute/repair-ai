@@ -198,3 +198,16 @@ the parent folder; no Render API keys.
     Otto's voice and code default. cedar and marin added to the admin
     selector; supersedes ruling 20's verse default, style instructions
     unchanged.
+
+22. 2026-08-05 - Otto answers to teach: members come to Otto to learn, and
+    Otto answers genuine knowledge questions properly (how parts, tools,
+    processes, business practices work) using Claude's general knowledge
+    plus the shared corpus, which already includes Bob's synthesis and
+    Mark's research in Otto's retrieval space. Knowledge answers may run up
+    to 5 plain sentences (the 1-3 sentence rule still governs ordinary
+    replies; no lists or long form ever). Check-with is rebalanced: Otto
+    answers himself when he reliably can, and routes to Mark only for
+    CURRENT or LOCAL market specifics (present-day prices, a competitor's
+    current offering), to Bob only for group-wide synthesis. Answering
+    questions is explicitly not solution design; rule 1 stands. Eval gained
+    a knowledge-question scenario.

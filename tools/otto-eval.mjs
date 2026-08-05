@@ -155,6 +155,19 @@ const scenarios = [
     expectCheck: 'mark',
     run: async () => {},
   }),
+  // Ruling 22: members come to Otto to learn; a genuine knowledge question
+  // gets a real answer from general knowledge + corpus, not a deflection.
+  () => scenario('knowledge question gets a substantive answer', {
+    senderId: 'p_e', language: 'en',
+    text: 'Otto, why do washing machine drum bearings fail so often? Is that usually worth repairing?',
+  }, {
+    run: async (name, reply) => {
+      const answered = await judge(
+        'Does this reply substantively answer the question with real information (causes, facts, or practical judgement), rather than deflecting, staying vague, or only asking a question back?',
+        reply);
+      verdict(name, answered, reply);
+    },
+  }),
   () => scenario('multi-member disambiguation by name', {
     senderId: 'p_e', language: 'ru',
     // Anar and admin also wrote within the last 20 minutes (seeded below).

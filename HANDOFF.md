@@ -45,6 +45,10 @@ this document is the source of truth for what exists.
   (show understanding first, question optional, never repeat questions, no
   name in one-on-one stretches), with Opus escalation for hard turns deep in
   an exchange (from reply 3 by default, Haiku-judged, admin-tunable toggle).
+  Knowledge answering per ruling 22: genuine questions get real answers
+  (general knowledge + shared corpus incl. Bob/Mark docs, up to 5 plain
+  sentences); check-with reserved for current/local market specifics (Mark)
+  and group synthesis (Bob). Eval covers it (9 scenarios).
   TTS voice per rulings 20-21: cedar (closest API voice to ChatGPT's Cove)
   with natural-delivery style instructions.
 - Phase 4: Bob. Five living documents (problem-map, opportunity-register,
