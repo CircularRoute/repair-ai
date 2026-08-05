@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 
 import { loadEnv, requireEnv } from './lib/env.mjs';
-import { openDb, ensureAdminMember, logEvent, resolveDataDir, getSetting } from './lib/db.mjs';
+import { openDb, ensureAdminMember, logEvent, resolveDataDir, getSetting, setSetting } from './lib/db.mjs';
 import {
   SESSION_COOKIE, safeEqual, createSession, getSession, retireSession,
   mintMagicLink, consumeMagicLink, mintLoginCode, consumeLoginCode,
@@ -29,6 +29,11 @@ import { OTTO_ID, onboardingMessage } from './lib/otto.mjs';
 import { embedTexts, rankChunks, blobToVector, cosine } from './lib/embeddings.mjs';
 import { runExtraction, maybeRunScheduled } from './lib/insights.mjs';
 import { validTags } from './lib/taxonomy.mjs';
+import {
+  CAP_LINES, ottoSettings, isEngagement, exchangeGate, recordOttoReply,
+  canIntervene, recordIntervention, memberPrefersVoice, generateReply, generateIntervention,
+} from './lib/otto-engine.mjs';
+import { tts } from './lib/voice.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const { path: envPath } = loadEnv();
@@ -167,9 +172,68 @@ function serveStoredFile(req, res, filePath, { fileName, mime, inlineAudio = fal
   createReadStream(resolved).pipe(res);
 }
 
+// Posts an Otto message (text, optionally as a voice note with the text kept).
+async function postOttoMessage(text, { language = null, memberIdFor = null } = {}) {
+  let audioPath = null;
+  const settings = ottoSettings(db);
+  const isQuestion = text.includes('?') && text.length <= 350;
+  if (
+    memberIdFor && isQuestion &&
+    settings.voiceLangs.includes(language || 'en') &&
+    memberPrefersVoice(db, memberIdFor)
+  ) {
+    try {
+      const buf = await tts(db, { text, voice: 'echo', agent: 'otto' });
+      const stored = storeFile(dataDir, 'audio', 'mp3', buf);
+      audioPath = stored.path;
+    } catch (err) {
+      logEvent(db, 'otto.tts_failed', { error: err.message });
+    }
+  }
+  const msg = postAndBroadcast(db, {
+    senderId: OTTO_ID,
+    senderKind: 'agent',
+    kind: audioPath ? 'voice' : 'text',
+    originalText: text,
+    audioPath,
+    transcript: audioPath ? text : null,
+    pipelineStatus: 'done',
+    language,
+  });
+  notifyMembers(db, { excludeMemberId: null, title: 'Repair AI', body: `Otto: ${text.slice(0, 80)}` }).catch(() => {});
+  return msg;
+}
+
+// Otto's engagement check, run after the pipeline finishes a member message.
+async function ottoConsider(processedMsg) {
+  try {
+    if (processedMsg.senderKind !== 'member' || processedMsg.status !== 'active') return;
+    const settings = ottoSettings(db);
+    if (settings.muted) return;
+    if (!isEngagement(db, processedMsg)) return;
+    const gate = exchangeGate(db, processedMsg.senderId);
+    if (gate === 'silent') return;
+    const language = processedMsg.language || 'en';
+    if (gate === 'cap') {
+      // The founder's verbatim line, translated, then quiet on this thread.
+      await postOttoMessage(CAP_LINES[language] || CAP_LINES.en, { language });
+      recordOttoReply(db, processedMsg.senderId, { capped: true });
+      logEvent(db, 'otto.capped', { memberId: processedMsg.senderId });
+      return;
+    }
+    const reply = await generateReply(db, processedMsg, { onBlock });
+    if (!reply) return;
+    await postOttoMessage(reply, { language, memberIdFor: processedMsg.senderId });
+    recordOttoReply(db, processedMsg.senderId);
+    logEvent(db, 'otto.replied', { to: processedMsg.senderId });
+  } catch (err) {
+    if (err.code !== 'SPEND_BLOCKED') logEvent(db, 'otto.error', { error: err.message });
+  }
+}
+
 function postMemberMessage(session, fields) {
   const msg = postAndBroadcast(db, { senderId: session.memberId, senderKind: 'member', ...fields });
-  schedulePipeline(db, msg.id, { onBlock });
+  schedulePipeline(db, msg.id, { onBlock, onProcessed: ottoConsider });
   notifyMembers(db, {
     excludeMemberId: session.memberId,
     title: 'Repair AI',
@@ -699,6 +763,28 @@ const server = createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true, status });
     }
 
+    // ---------- Agent controls (Phase 3) ----------
+    if (path === '/api/admin/agent-settings' && req.method === 'GET') {
+      if (!requireAdmin(req, res)) return;
+      const s = ottoSettings(db);
+      return sendJson(res, 200, {
+        ottoMuted: s.muted, ottoCap: s.cap, ottoProactivePerDay: s.proactivePerDay,
+        ottoVoiceLangs: s.voiceLangs.join(','),
+      });
+    }
+    if (path === '/api/admin/agent-settings' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const body = await readJsonBody(req);
+      if (body.ottoMuted !== undefined) setSetting(db, 'ottoMuted', body.ottoMuted ? '1' : '0');
+      if (Number.isFinite(Number(body.ottoCap)) && Number(body.ottoCap) >= 1) setSetting(db, 'ottoCap', Number(body.ottoCap));
+      if (Number.isFinite(Number(body.ottoProactivePerDay)) && Number(body.ottoProactivePerDay) >= 0) setSetting(db, 'ottoProactivePerDay', Number(body.ottoProactivePerDay));
+      if (typeof body.ottoVoiceLangs === 'string') {
+        setSetting(db, 'ottoVoiceLangs', body.ottoVoiceLangs.split(',').map((s) => s.trim()).filter((l) => ['en', 'ru', 'az'].includes(l)).join(','));
+      }
+      logEvent(db, 'otto.settings_changed', null);
+      return sendJson(res, 200, { ok: true });
+    }
+
     if (path === '/api/admin/spend' && req.method === 'GET') {
       if (!requireAdmin(req, res)) return;
       return sendJson(res, 200, spendSummary(db));
@@ -763,3 +849,19 @@ server.listen(PORT, () => {
 setInterval(() => {
   maybeRunScheduled(db, { onBlock }).catch(() => {});
 }, 60 * 60 * 1000);
+
+// Otto's proactive interventions: checked every 5 minutes, gated by the daily
+// budget, spacing, and the 10-minute lull rule (spec Section 5).
+setInterval(async () => {
+  try {
+    const gate = canIntervene(db);
+    if (!gate.ok) return;
+    const question = await generateIntervention(db, { onBlock });
+    if (!question) return;
+    recordIntervention(db);
+    await postOttoMessage(question, { language: null });
+    logEvent(db, 'otto.intervened', null);
+  } catch (err) {
+    if (err.code !== 'SPEND_BLOCKED') logEvent(db, 'otto.intervention_error', { error: err.message });
+  }
+}, 5 * 60 * 1000);

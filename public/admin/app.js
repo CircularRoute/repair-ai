@@ -324,6 +324,31 @@ async function loadTaxonomy() {
   }
 }
 
+// --- Agent controls ---
+async function loadAgentSettings() {
+  const s = await api('/api/admin/agent-settings');
+  document.getElementById('otto-muted').checked = s.ottoMuted;
+  document.getElementById('otto-cap').value = s.ottoCap;
+  document.getElementById('otto-proactive').value = s.ottoProactivePerDay;
+  const langs = s.ottoVoiceLangs.split(',');
+  for (const cb of document.querySelectorAll('.otto-voice')) cb.checked = langs.includes(cb.value);
+  document.getElementById('agent-mini').textContent = s.ottoMuted ? 'Otto MUTED' : `cap ${s.ottoCap}, ${s.ottoProactivePerDay}/day`;
+}
+document.getElementById('agent-save').addEventListener('click', async () => {
+  await api('/api/admin/agent-settings', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ottoMuted: document.getElementById('otto-muted').checked,
+      ottoCap: Number(document.getElementById('otto-cap').value),
+      ottoProactivePerDay: Number(document.getElementById('otto-proactive').value),
+      ottoVoiceLangs: [...document.querySelectorAll('.otto-voice:checked')].map((c) => c.value).join(','),
+    }),
+  });
+  document.getElementById('agent-status').textContent = 'Saved';
+  setTimeout(() => { document.getElementById('agent-status').textContent = ''; }, 2000);
+  loadAgentSettings();
+});
+
 async function init() {
   const res = await fetch('/api/me');
   if (!res.ok) { location.href = '/login'; return; }
@@ -331,7 +356,7 @@ async function init() {
   document.getElementById('whoami').textContent = meData.name;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/admin/sw.js');
   document.getElementById('corpus-details').addEventListener('toggle', loadCorpus);
-  await Promise.all([loadSpend(), loadMembers(), loadTaxonomy()]);
+  await Promise.all([loadSpend(), loadMembers(), loadTaxonomy(), loadAgentSettings()]);
   setInterval(loadSpend, 30000);
   setInterval(loadCorpus, 30000);
 }

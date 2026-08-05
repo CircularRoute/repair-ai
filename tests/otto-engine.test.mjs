@@ -1,0 +1,126 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { openDb, ensureAdminMember, setSetting } from '../lib/db.mjs';
+import { insertMessage } from '../lib/chat.mjs';
+import {
+  CAP_LINES, isEngagement, exchangeGate, recordOttoReply,
+  canIntervene, recordIntervention, memberPrefersVoice, ottoSettings,
+} from '../lib/otto-engine.mjs';
+import { OTTO_ID } from '../lib/otto.mjs';
+
+function freshDb() {
+  const db = openDb({ path: ':memory:' });
+  ensureAdminMember(db);
+  db.prepare("INSERT INTO members (id, name, role, language, joinedAt) VALUES ('p_e', 'Elvin', 'partner', 'ru', '2026-08-01')").run();
+  return db;
+}
+
+test('cap lines are exact in all three languages and name Rashad', () => {
+  assert.equal(CAP_LINES.en, 'I have been instructed by Rashad to keep conversations short, I am sorry.');
+  assert.match(CAP_LINES.ru, /Рашад/);
+  assert.match(CAP_LINES.az, /Rəşad/);
+  for (const line of Object.values(CAP_LINES)) {
+    assert.equal(line.includes(String.fromCharCode(0x2014)), false);
+  }
+});
+
+test('engagement: mention, reply-to-otto, live exchange continuation', () => {
+  const db = freshDb();
+  const t = new Date();
+  assert.equal(isEngagement(db, { senderId: 'p_e', originalText: 'Otto, what do you think?' }, t), true);
+  assert.equal(isEngagement(db, { senderId: 'p_e', originalText: 'Отто, привет' }, t), true);
+  assert.equal(isEngagement(db, { senderId: 'p_e', originalText: 'just chatting with friends' }, t), false);
+
+  const ottoMsg = insertMessage(db, { senderId: OTTO_ID, senderKind: 'agent', kind: 'text', originalText: 'q?', pipelineStatus: 'done' });
+  assert.equal(isEngagement(db, { senderId: 'p_e', originalText: 'answer', replyToId: ottoMsg.id }, t), true);
+
+  // Continuation: Otto replied to this member 5 minutes ago.
+  exchangeGate(db, 'p_e', t);
+  recordOttoReply(db, 'p_e', {}, new Date(t.getTime() - 5 * 60 * 1000));
+  assert.equal(isEngagement(db, { senderId: 'p_e', originalText: 'plain follow up' }, t), true);
+  // A different member's plain message is not a continuation.
+  assert.equal(isEngagement(db, { senderId: 'admin', originalText: 'plain message' }, t), false);
+});
+
+test('conversation cap: 4 replies, then the verbatim line, then silence, then reset', () => {
+  const db = freshDb();
+  let now = new Date('2026-08-05T10:00:00Z');
+  for (let i = 0; i < 4; i++) {
+    assert.equal(exchangeGate(db, 'p_e', now), 'reply', `reply ${i + 1}`);
+    recordOttoReply(db, 'p_e', {}, now);
+    now = new Date(now.getTime() + 60 * 1000);
+  }
+  assert.equal(exchangeGate(db, 'p_e', now), 'cap');
+  recordOttoReply(db, 'p_e', { capped: true }, now);
+  assert.equal(exchangeGate(db, 'p_e', new Date(now.getTime() + 60 * 1000)), 'silent');
+  // After a 30+ minute gap the exchange resets.
+  assert.equal(exchangeGate(db, 'p_e', new Date(now.getTime() + 35 * 60 * 1000)), 'reply');
+});
+
+test('cap is admin-tunable', () => {
+  const db = freshDb();
+  setSetting(db, 'ottoCap', 1);
+  const now = new Date('2026-08-05T10:00:00Z');
+  assert.equal(exchangeGate(db, 'p_e', now), 'reply');
+  recordOttoReply(db, 'p_e', {}, now);
+  assert.equal(exchangeGate(db, 'p_e', new Date(now.getTime() + 1000)), 'cap');
+});
+
+test('proactive budget: lull required, spacing, daily budget, mute', () => {
+  const db = freshDb();
+  const now = new Date('2026-08-05T12:00:00Z');
+
+  // Active conversation 2 minutes ago: no intervention.
+  insertMessage(db, { senderId: 'p_e', senderKind: 'member', kind: 'text', originalText: 'hi', ts: new Date(now.getTime() - 2 * 60 * 1000).toISOString() });
+  assert.equal(canIntervene(db, now).ok, false);
+
+  // Lull of 15 minutes: allowed.
+  const db2 = freshDb();
+  insertMessage(db2, { senderId: 'p_e', senderKind: 'member', kind: 'text', originalText: 'hi', ts: new Date(now.getTime() - 15 * 60 * 1000).toISOString() });
+  assert.equal(canIntervene(db2, now).ok, true);
+
+  // Spacing: a second intervention 10 minutes later is blocked.
+  recordIntervention(db2, now);
+  assert.equal(canIntervene(db2, new Date(now.getTime() + 10 * 60 * 1000)).ok, false);
+
+  // Daily budget of 3.
+  recordIntervention(db2, new Date(now.getTime() + 40 * 60 * 1000));
+  recordIntervention(db2, new Date(now.getTime() + 80 * 60 * 1000));
+  assert.equal(canIntervene(db2, new Date(now.getTime() + 200 * 60 * 1000)).ok, false);
+  assert.equal(canIntervene(db2, new Date(now.getTime() + 200 * 60 * 1000)).reason, 'budget');
+
+  // Mute wins over everything.
+  const db3 = freshDb();
+  insertMessage(db3, { senderId: 'p_e', senderKind: 'member', kind: 'text', originalText: 'hi', ts: new Date(now.getTime() - 15 * 60 * 1000).toISOString() });
+  setSetting(db3, 'ottoMuted', '1');
+  assert.equal(canIntervene(db3, now).ok, false);
+  assert.equal(canIntervene(db3, now).reason, 'muted');
+});
+
+test('stale groups and otto-last are not intervened on', () => {
+  const db = freshDb();
+  const now = new Date('2026-08-05T12:00:00Z');
+  insertMessage(db, { senderId: 'p_e', senderKind: 'member', kind: 'text', originalText: 'old', ts: new Date(now.getTime() - 10 * 3600 * 1000).toISOString() });
+  assert.equal(canIntervene(db, now).reason, 'stale');
+  insertMessage(db, { senderId: OTTO_ID, senderKind: 'agent', kind: 'text', originalText: 'q?', ts: new Date(now.getTime() - 20 * 60 * 1000).toISOString() });
+  assert.equal(canIntervene(db, now).reason, 'otto-last');
+});
+
+test('voice preference needs a mostly-voice history', () => {
+  const db = freshDb();
+  assert.equal(memberPrefersVoice(db, 'p_e'), false);
+  for (let i = 0; i < 4; i++) {
+    insertMessage(db, { senderId: 'p_e', senderKind: 'member', kind: 'voice', audioPath: `/a/${i}.m4a` });
+  }
+  insertMessage(db, { senderId: 'p_e', senderKind: 'member', kind: 'text', originalText: 'x' });
+  assert.equal(memberPrefersVoice(db, 'p_e'), true);
+});
+
+test('otto settings defaults', () => {
+  const db = freshDb();
+  const s = ottoSettings(db);
+  assert.equal(s.cap, 4);
+  assert.equal(s.proactivePerDay, 3);
+  assert.equal(s.muted, false);
+  assert.deepEqual(s.voiceLangs, ['en', 'ru', 'az']);
+});

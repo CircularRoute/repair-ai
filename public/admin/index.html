@@ -116,9 +116,24 @@
     </section>
 
     <section class="card">
-      <details>
-        <summary class="card-summary"><h2>Agent controls</h2><span class="muted small">Phase 3</span></summary>
-        <p class="muted">Otto budgets and caps arrive in Phase 3.</p>
+      <details id="agent-details">
+        <summary class="card-summary"><h2>Agent controls</h2><span id="agent-mini" class="muted small"></span></summary>
+        <div class="row"><label class="check"><input type="checkbox" id="otto-muted"> Mute Otto entirely</label></div>
+        <div class="row">
+          <span class="muted small">Conversation cap (replies per exchange):</span>
+          <input id="otto-cap" type="number" min="1" max="20" class="inline-num">
+        </div>
+        <div class="row">
+          <span class="muted small">Proactive questions per day:</span>
+          <input id="otto-proactive" type="number" min="0" max="20" class="inline-num">
+        </div>
+        <div class="row checks">
+          <span class="muted small">Voice replies:</span>
+          <label class="check"><input type="checkbox" class="otto-voice" value="en"> EN</label>
+          <label class="check"><input type="checkbox" class="otto-voice" value="ru"> RU</label>
+          <label class="check"><input type="checkbox" class="otto-voice" value="az"> AZ</label>
+        </div>
+        <div class="row"><button id="agent-save">Save</button><span id="agent-status" class="muted small"></span></div>
       </details>
     </section>
   </main>

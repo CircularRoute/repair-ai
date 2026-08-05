@@ -57,4 +57,11 @@ npm test
   (text-embedding-3-large, Float32 BLOBs, in-memory cosine), semantic search in
   the corpus browser, daily insight extraction with mandatory provenance, and
   admin-approved taxonomy proposals.
-- Next: Phase 3, Otto active (responsive behaviour, caps, budgets, voice).
+- Phase 3 (built): Otto active. Responsive behaviour on engagement (mention,
+  reply, live exchange), retrieval-sharpened questions, conversation cap with
+  the founder's verbatim line in EN/RU/AZ, proactive budget with lull logic,
+  name discipline, rationed voice replies (echo TTS, text always attached),
+  dashboard agent controls, and a 7-scenario behavioural eval
+  (tools/otto-eval.mjs) covering language matching, solution baits, fake-admin
+  and deletion baits, prompt disclosure, and name disambiguation.
+- Next: Phase 4, Bob (retrieval synthesis, five living documents, admin chat).

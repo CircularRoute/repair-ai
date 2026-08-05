@@ -76,8 +76,13 @@ function buildMessage(m) {
     ph.textContent = '\u{1F6AB} This message was deleted';
     bubble.appendChild(ph);
   } else if (m.kind === 'voice') {
-    // Voice bubbles show only the player; transcripts live in the admin
-    // corpus browser, not in the group chat.
+    // Member voice bubbles show only the player (transcripts live in the
+    // corpus browser). Otto's voice notes always carry their text too.
+    if (m.senderKind === 'agent' && m.text) {
+      const textDiv = document.createElement('div');
+      textDiv.textContent = m.text;
+      bubble.appendChild(textDiv);
+    }
     const audio = document.createElement('audio');
     audio.controls = true;
     audio.preload = 'none';
