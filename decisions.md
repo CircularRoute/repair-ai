@@ -141,3 +141,13 @@ the parent folder; no Render API keys.
     days do not count). Quiet days are skipped with a logged reason. The manual
     "Run full synthesis" button ignores the gate. The Fable toggle applies to
     these daily runs.
+
+16. 2026-08-05 - Pre-launch test data wipe: on the founder's explicit command,
+    all TEST data from the build/testing period is hard-deleted before real
+    partners join (messages incl. the founder's and test members', derived
+    tags/chunks/insights/documents, test members and their access, chats with
+    agents, stored test media). Kept: the admin account and its sessions, the
+    Knowledge library and its index, spend history, settings and standing
+    directives, event logs. The never-delete rule (hard rule 4) governs REAL
+    partner data from launch onward and is unchanged. Executed via an
+    admin-only endpoint requiring an explicit confirmation phrase.

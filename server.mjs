@@ -3,7 +3,7 @@
 // spend meter with the $20/day ceiling, Otto onboarding-only.
 
 import { createServer } from 'node:http';
-import { readFileSync, existsSync, statSync, createReadStream } from 'node:fs';
+import { readFileSync, existsSync, statSync, createReadStream, readdirSync, unlinkSync } from 'node:fs';
 import { join, normalize, extname, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
@@ -1082,6 +1082,52 @@ const server = createServer(async (req, res) => {
       const body = await readJsonBody(req);
       retireKnowledge(db, body.id);
       return sendJson(res, 200, { ok: true });
+    }
+
+    // Pre-launch test data wipe (founder ruling 16). Admin-only, requires the
+    // exact confirmation phrase. Keeps: admin account + sessions, Knowledge
+    // library and its kn: index, spend history, settings/directives, events.
+    if (path === '/api/admin/reset-test-data' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const body = await readJsonBody(req);
+      if (body.confirm !== 'DELETE ALL TEST DATA') {
+        return sendJson(res, 400, { error: 'confirmation phrase mismatch' });
+      }
+      const counts = {};
+      const del = (label, sql) => { counts[label] = db.prepare(sql).run().changes; };
+      del('messages', 'DELETE FROM messages');
+      del('tags', 'DELETE FROM tags');
+      del('chunks', "DELETE FROM chunks WHERE messageId NOT LIKE 'kn:%'");
+      del('insights', 'DELETE FROM insights');
+      del('glossary', 'DELETE FROM glossary');
+      del('agent_requests', 'DELETE FROM agent_requests');
+      del('agent_chat', 'DELETE FROM agent_chat');
+      del('bob_chat_legacy', 'DELETE FROM bob_chat');
+      del('documents', 'DELETE FROM documents');
+      del('taxonomy_proposals', 'DELETE FROM taxonomy_proposals');
+      del('login_codes', 'DELETE FROM login_codes');
+      del('magic_links', 'DELETE FROM magic_links');
+      del('sessions', "DELETE FROM sessions WHERE memberId != 'admin'");
+      del('push_subscriptions', "DELETE FROM push_subscriptions WHERE memberId != 'admin'");
+      del('members', "DELETE FROM members WHERE role != 'admin'");
+      for (const key of ['ottoState', 'insightsProcessedUpTo', 'insightsLastRunAt',
+        'bobSynthesisLastRunAt', 'bobWeeklyLastRunAt', 'bobDigestLastRunAt',
+        'markWeeklyLastRunAt', 'markQueue']) {
+        db.prepare('DELETE FROM settings WHERE key = ?').run(key);
+      }
+      // Test media on disk (knowledge/ is kept).
+      let filesRemoved = 0;
+      for (const sub of ['audio', 'files']) {
+        const dir = join(dataDir, sub);
+        if (existsSync(dir)) {
+          for (const f of readdirSync(dir)) {
+            try { unlinkSync(join(dir, f)); filesRemoved++; } catch {}
+          }
+        }
+      }
+      counts.mediaFiles = filesRemoved;
+      logEvent(db, 'admin.test_data_wiped', counts);
+      return sendJson(res, 200, { ok: true, deleted: counts });
     }
 
     // ---------- Agent controls (Phase 3) ----------
