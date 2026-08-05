@@ -26,6 +26,9 @@ import {
 import { spendSummary, setCeiling, unblock, isBlocked } from './lib/spend.mjs';
 import { configurePush, vapidPublicKey, saveSubscription, notifyMembers } from './lib/push.mjs';
 import { OTTO_ID, onboardingMessage } from './lib/otto.mjs';
+import { embedTexts, rankChunks, blobToVector, cosine } from './lib/embeddings.mjs';
+import { runExtraction, maybeRunScheduled } from './lib/insights.mjs';
+import { validTags } from './lib/taxonomy.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const { path: envPath } = loadEnv();
@@ -576,7 +579,7 @@ const server = createServer(async (req, res) => {
       // The admin corpus view keeps original content even for deleted messages
       // (never-delete rule); the deleted flag marks them excluded from agents.
       return sendJson(res, 200, {
-        messages: rows.map((m) => ({ ...messageView(db, m), originalText: m.originalText, status: m.status, deletedAt: m.deletedAt, transcript: m.transcript, transcriptAlt: m.transcriptAlt, transcriptConfidence: m.transcriptConfidence, language: m.language, englishText: m.englishText, pipelineStatus: m.pipelineStatus, pipelineError: m.pipelineError })),
+        messages: rows.map((m) => ({ ...messageView(db, m), originalText: m.originalText, status: m.status, deletedAt: m.deletedAt, transcript: m.transcript, transcriptAlt: m.transcriptAlt, transcriptConfidence: m.transcriptConfidence, language: m.language, englishText: m.englishText, pipelineStatus: m.pipelineStatus, pipelineError: m.pipelineError, tags: db.prepare('SELECT tag, confidence FROM tags WHERE messageId = ?').all(m.id) })),
       });
     }
 
@@ -596,6 +599,88 @@ const server = createServer(async (req, res) => {
       schedulePipeline(db, msg.id, { onBlock });
       logEvent(db, 'transcript.corrected', { messageId: msg.id });
       return sendJson(res, 200, { ok: true });
+    }
+
+    // ---------- Phase 2: corpus intelligence ----------
+    // Semantic search over chunks and insights, with optional filters.
+    if (path === '/api/admin/search' && req.method === 'GET') {
+      if (!requireAdmin(req, res)) return;
+      const q = (url.searchParams.get('q') || '').trim();
+      if (!q) return sendJson(res, 400, { error: 'query required' });
+      const [queryVector] = await embedTexts(db, [q]);
+      const tagFilter = url.searchParams.get('tag') || null;
+      const ranked = rankChunks(db, queryVector, 60);
+      const results = [];
+      for (const r of ranked) {
+        const msg = db.prepare('SELECT * FROM messages WHERE id = ?').get(r.messageId);
+        if (!msg || msg.status !== 'active') continue;
+        const tags = db.prepare('SELECT tag, confidence FROM tags WHERE messageId = ?').all(msg.id);
+        if (tagFilter && !tags.some((t) => t.tag === tagFilter || t.tag.startsWith(tagFilter + '/'))) continue;
+        results.push({
+          score: Number(r.score.toFixed(3)),
+          chunkText: r.text,
+          message: { ...messageView(db, msg), language: msg.language, englishText: msg.englishText, tags },
+        });
+        if (results.length >= 15) break;
+      }
+      // Insights matching the query, ranked the same way.
+      const insightRows = db.prepare("SELECT * FROM insights WHERE status = 'active' AND embedding IS NOT NULL").all();
+      const insights = insightRows
+        .map((i) => ({
+          id: i.id, text: i.text, tag: i.tag, weight: i.weight,
+          sourceMessageIds: JSON.parse(i.sourceMessageIds),
+          score: Number(cosine(Float32Array.from(queryVector), blobToVector(i.embedding)).toFixed(3)),
+        }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 8);
+      return sendJson(res, 200, { results, insights });
+    }
+
+    if (path === '/api/admin/insights' && req.method === 'GET') {
+      if (!requireAdmin(req, res)) return;
+      const rows = db.prepare("SELECT * FROM insights WHERE status = 'active' ORDER BY id DESC LIMIT 100").all();
+      const memberNames = new Map(db.prepare('SELECT id, name FROM members').all().map((m) => [m.id, m.name]));
+      return sendJson(res, 200, {
+        insights: rows.map((i) => ({
+          id: i.id, text: i.text, tag: i.tag, weight: i.weight, extractedAt: i.extractedAt,
+          sources: JSON.parse(i.sourceMessageIds).map((mid) => {
+            const m = db.prepare('SELECT * FROM messages WHERE id = ?').get(mid);
+            return m ? { id: mid, sender: memberNames.get(m.senderId) || m.senderId, text: (m.englishText || m.originalText || m.transcript || '').slice(0, 160), ts: m.ts } : { id: mid };
+          }),
+        })),
+        lastRunAt: getSetting(db, 'insightsLastRunAt', null),
+      });
+    }
+
+    if (path === '/api/admin/insights/run' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      try {
+        const result = await runExtraction(db, { onBlock });
+        return sendJson(res, 200, result);
+      } catch (err) {
+        if (err.code === 'SPEND_BLOCKED') return sendJson(res, 409, { error: 'spend ceiling reached; unblock first' });
+        logEvent(db, 'insights.error', { error: err.message });
+        return sendJson(res, 500, { error: err.message });
+      }
+    }
+
+    if (path === '/api/admin/taxonomy' && req.method === 'GET') {
+      if (!requireAdmin(req, res)) return;
+      return sendJson(res, 200, {
+        tags: [...validTags(db)].sort(),
+        proposals: db.prepare("SELECT * FROM taxonomy_proposals ORDER BY id DESC LIMIT 50").all(),
+      });
+    }
+
+    if (path === '/api/admin/taxonomy/decide' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const body = await readJsonBody(req);
+      const row = db.prepare('SELECT * FROM taxonomy_proposals WHERE id = ?').get(Number(body.id));
+      if (!row || row.status !== 'pending') return sendJson(res, 404, { error: 'proposal not found or already decided' });
+      const status = body.approve ? 'approved' : 'rejected';
+      db.prepare('UPDATE taxonomy_proposals SET status = ? WHERE id = ?').run(status, row.id);
+      logEvent(db, 'taxonomy.decided', { tag: row.tag, status });
+      return sendJson(res, 200, { ok: true, status });
     }
 
     if (path === '/api/admin/spend' && req.method === 'GET') {
@@ -656,3 +741,9 @@ const server = createServer(async (req, res) => {
 server.listen(PORT, () => {
   console.log(`Repair AI listening on port ${PORT}`);
 });
+
+// Daily insight extraction: checked hourly, runs when there is new material
+// and the previous run is old enough (lib/insights.mjs).
+setInterval(() => {
+  maybeRunScheduled(db, { onBlock }).catch(() => {});
+}, 60 * 60 * 1000);

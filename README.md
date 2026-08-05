@@ -52,4 +52,9 @@ npm test
   at /join/:token, capture pipeline (transcription with the reinforced AZ path,
   language detection, English shadow translation), web push, spend meter with the
   $20/day ceiling and admin-only unblock, Otto onboarding-only.
-- Next: Phase 2, corpus intelligence (classification, embeddings, insights).
+- Phase 2 (built, acceptance evidence in the dashboard): classification and
+  tagging against the Section 4 taxonomy, chunking, embeddings
+  (text-embedding-3-large, Float32 BLOBs, in-memory cosine), semantic search in
+  the corpus browser, daily insight extraction with mandatory provenance, and
+  admin-approved taxonomy proposals.
+- Next: Phase 3, Otto active (responsive behaviour, caps, budgets, voice).

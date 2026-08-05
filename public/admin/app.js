@@ -143,6 +143,7 @@ async function loadCorpus() {
     head.appendChild(el('strong', null, m.senderName));
     head.appendChild(el('span', 'muted', `  ${new Date(m.ts).toLocaleString()} · ${m.kind}` +
       (m.language ? ` · ${m.language}` : '') +
+      (m.tags?.length ? ` · ${m.tags.map((t) => t.tag).join(', ')}` : '') +
       (m.status === 'deleted' ? ' · DELETED by sender (hidden from chat and agents)' : '') +
       (m.pipelineStatus !== 'done' ? ` · pipeline: ${m.pipelineStatus}` : '')));
     item.appendChild(head);
@@ -188,6 +189,126 @@ async function loadCorpus() {
   }
 }
 
+// --- Semantic search ---
+async function runSearch() {
+  const q = document.getElementById('search-input').value.trim();
+  if (!q) return;
+  const tag = document.getElementById('search-tag').value;
+  const box = document.getElementById('search-results');
+  box.hidden = false;
+  box.innerHTML = '';
+  box.appendChild(el('div', 'muted small', 'Searching...'));
+  const data = await api(`/api/admin/search?q=${encodeURIComponent(q)}${tag ? `&tag=${encodeURIComponent(tag)}` : ''}`);
+  box.innerHTML = '';
+  document.getElementById('search-clear').hidden = false;
+  if (data.insights?.length) {
+    box.appendChild(el('h3', null, 'Matching insights'));
+    for (const i of data.insights.filter((x) => x.score > 0.25)) {
+      const item = el('div', 'corpus-item');
+      item.appendChild(el('div', null, i.text));
+      item.appendChild(el('div', 'muted small', `${i.tag} · weight ${i.weight} · score ${i.score} · sources: ${i.sourceMessageIds.length}`));
+      box.appendChild(item);
+    }
+  }
+  box.appendChild(el('h3', null, 'Matching messages'));
+  if (!data.results.length) box.appendChild(el('div', 'muted small', 'No matches.'));
+  for (const r of data.results) {
+    const item = el('div', 'corpus-item');
+    const head = el('div', 'small');
+    head.appendChild(el('strong', null, r.message.senderName));
+    head.appendChild(el('span', 'muted', `  ${new Date(r.message.ts).toLocaleString()} · score ${r.score}` +
+      (r.message.tags?.length ? ` · ${r.message.tags.map((t) => t.tag).join(', ')}` : '')));
+    item.appendChild(head);
+    item.appendChild(el('div', null, r.message.text || r.chunkText || ''));
+    if (r.message.englishText && r.message.language !== 'en') {
+      item.appendChild(el('div', 'muted small', `EN: ${r.message.englishText.slice(0, 200)}`));
+    }
+    box.appendChild(item);
+  }
+}
+document.getElementById('search-btn').addEventListener('click', runSearch);
+document.getElementById('search-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') runSearch(); });
+document.getElementById('search-clear').addEventListener('click', () => {
+  document.getElementById('search-results').hidden = true;
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-clear').hidden = true;
+});
+
+// --- Insights ---
+async function loadInsights() {
+  if (!document.getElementById('insights-details').open) return;
+  const data = await api('/api/admin/insights');
+  document.getElementById('insights-mini').textContent = `${data.insights.length} extracted`;
+  const list = document.getElementById('insights-list');
+  list.innerHTML = '';
+  if (!data.insights.length) list.appendChild(el('div', 'muted small', 'No insights yet. Chat first, then extract.'));
+  for (const i of data.insights) {
+    const item = el('div', 'corpus-item');
+    item.appendChild(el('div', null, i.text));
+    item.appendChild(el('div', 'muted small', `${i.tag} · weight ${i.weight} · ${new Date(i.extractedAt).toLocaleString()}`));
+    for (const s of i.sources) {
+      item.appendChild(el('div', 'muted small', `  source ${s.sender || s.id}: "${s.text || ''}"`));
+    }
+    list.appendChild(item);
+  }
+}
+document.getElementById('insights-details').addEventListener('toggle', loadInsights);
+document.getElementById('insights-run').addEventListener('click', async () => {
+  const status = document.getElementById('insights-status');
+  status.textContent = 'Extracting...';
+  const data = await api('/api/admin/insights/run', { method: 'POST' });
+  status.textContent = data.error
+    ? data.error
+    : `Processed ${data.processed} messages, ${data.extracted} insights, ${data.proposals} tag proposals.`;
+  loadInsights();
+  loadTaxonomy();
+});
+
+// --- Taxonomy ---
+async function loadTaxonomy() {
+  const data = await api('/api/admin/taxonomy');
+  const pending = data.proposals.filter((p) => p.status === 'pending');
+  document.getElementById('taxonomy-mini').textContent =
+    pending.length ? `${pending.length} pending approval` : `${data.tags.length} tags`;
+  const box = document.getElementById('taxonomy-proposals');
+  box.innerHTML = '';
+  if (!data.proposals.length) box.appendChild(el('div', 'muted small', 'No proposals yet.'));
+  for (const p of data.proposals) {
+    const item = el('div', 'corpus-item');
+    item.appendChild(el('strong', null, p.tag));
+    if (p.evidence) item.appendChild(el('div', 'muted small', p.evidence));
+    if (p.status === 'pending') {
+      const row = el('div', 'row');
+      const yes = el('button', null, 'Approve');
+      const no = el('button', 'ghost', 'Reject');
+      yes.addEventListener('click', async () => {
+        await api('/api/admin/taxonomy/decide', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: p.id, approve: true }) });
+        loadTaxonomy();
+      });
+      no.addEventListener('click', async () => {
+        await api('/api/admin/taxonomy/decide', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: p.id, approve: false }) });
+        loadTaxonomy();
+      });
+      row.appendChild(yes);
+      row.appendChild(no);
+      item.appendChild(row);
+    } else {
+      item.appendChild(el('div', 'muted small', p.status));
+    }
+    box.appendChild(item);
+  }
+  // Fill the search tag filter with current tags.
+  const select = document.getElementById('search-tag');
+  if (select.options.length <= 1) {
+    for (const t of data.tags) {
+      const opt = document.createElement('option');
+      opt.value = t;
+      opt.textContent = t;
+      select.appendChild(opt);
+    }
+  }
+}
+
 async function init() {
   const res = await fetch('/api/me');
   if (!res.ok) { location.href = '/login'; return; }
@@ -195,7 +316,7 @@ async function init() {
   document.getElementById('whoami').textContent = meData.name;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/admin/sw.js');
   document.getElementById('corpus-details').addEventListener('toggle', loadCorpus);
-  await Promise.all([loadSpend(), loadMembers()]);
+  await Promise.all([loadSpend(), loadMembers(), loadTaxonomy()]);
   setInterval(loadSpend, 30000);
   setInterval(loadCorpus, 30000);
 }

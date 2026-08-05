@@ -69,9 +69,35 @@
     <section class="card span2">
       <details id="corpus-details">
         <summary class="card-summary"><h2>Corpus browser</h2><span class="muted small">tap to expand</span></summary>
-        <p class="muted small">Latest messages with transcripts and English shadow translations.
+        <div class="row">
+          <input id="search-input" placeholder="Semantic search, e.g. missed calls during repairs">
+          <select id="search-tag"><option value="">All tags</option></select>
+          <button id="search-btn">Search</button>
+          <button id="search-clear" class="ghost" hidden>Clear</button>
+        </div>
+        <div id="search-results" hidden></div>
+        <p class="muted small">Latest messages with transcripts, English shadow translations, and tags.
           Low-confidence AZ transcripts show a correction box; corrections feed the glossary.</p>
         <div id="corpus"></div>
+      </details>
+    </section>
+
+    <section class="card span2">
+      <details id="insights-details">
+        <summary class="card-summary"><h2>Insights</h2><span id="insights-mini" class="muted small"></span></summary>
+        <p class="muted small">Atomic findings extracted from the conversation, each linked to its source
+          messages. Runs daily by itself; the button runs it now on anything new.</p>
+        <button id="insights-run">Extract now</button>
+        <span id="insights-status" class="muted small"></span>
+        <div id="insights-list"></div>
+      </details>
+    </section>
+
+    <section class="card">
+      <details id="taxonomy-details">
+        <summary class="card-summary"><h2>Taxonomy</h2><span id="taxonomy-mini" class="muted small"></span></summary>
+        <p class="muted small">Proposed new subtags need your approval; nothing mutates silently.</p>
+        <div id="taxonomy-proposals"></div>
       </details>
     </section>
 
