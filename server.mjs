@@ -376,7 +376,7 @@ const server = createServer(async (req, res) => {
     // ---------- Admin APIs ----------
     if (path === '/api/admin/members' && req.method === 'GET') {
       if (!requireAdmin(req, res)) return;
-      const members = db.prepare("SELECT id, name, role, language, status, joinedAt, consentShownAt FROM members ORDER BY joinedAt").all();
+      const members = db.prepare("SELECT id, name, role, language, languages, status, joinedAt, consentShownAt FROM members ORDER BY joinedAt").all();
       const invites = db.prepare(
         "SELECT ml.token, ml.memberId, ml.expiresAt, ml.usedAt, m.name FROM magic_links ml JOIN members m ON m.id = ml.memberId WHERE ml.purpose = 'invite' ORDER BY ml.createdAt DESC LIMIT 20"
       ).all();
@@ -389,11 +389,15 @@ const server = createServer(async (req, res) => {
       if (!requireAdmin(req, res)) return;
       const body = await readJsonBody(req);
       const name = String(body.name || '').trim();
-      const language = ['en', 'ru', 'az'].includes(body.language) ? body.language : 'en';
+      const valid = (l) => ['en', 'ru', 'az'].includes(l);
+      const main = valid(body.language) ? body.language : 'en';
+      // All languages the member uses, main first (multi-language ruling).
+      const extras = Array.isArray(body.languages) ? body.languages.filter(valid) : [];
+      const languages = [...new Set([main, ...extras])].join(',');
       if (!name) return sendJson(res, 400, { error: 'name required' });
       const memberId = `p_${randomBytes(5).toString('hex')}`;
-      db.prepare('INSERT INTO members (id, name, role, language, joinedAt) VALUES (?, ?, ?, ?, ?)')
-        .run(memberId, name, 'partner', language, new Date().toISOString());
+      db.prepare('INSERT INTO members (id, name, role, language, languages, joinedAt) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(memberId, name, 'partner', main, languages, new Date().toISOString());
       const link = mintMagicLink(db, memberId, 'invite', new Date(), 7 * 24 * 60);
       logEvent(db, 'invite.created', { memberId, name });
       return sendJson(res, 200, { url: `${url.origin}/join/${link.token}`, memberId, expiresAt: link.expiresAt });

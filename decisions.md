@@ -96,3 +96,10 @@ the parent folder; no Render API keys.
     - The ceiling amount is admin-tunable in the dashboard; $20/day is the ruled
       starting value. Spend is metered per agent per day in the spend table (spec
       Section 9) and shown on the dashboard spend meter.
+
+11. 2026-08-05 - Multiple languages per member: a member has one MAIN language plus
+    any additional languages, set by the admin at invite. The main language drives
+    Otto's onboarding (and later replies). Transcription hints are forced only for
+    single-language members; multilingual members auto-detect, and the reinforced
+    AZ path still runs whenever a note turns out to be Azerbaijani for anyone whose
+    languages include AZ.

@@ -54,3 +54,12 @@ test('voice message view exposes audio without pipeline internals', () => {
   assert.equal('audioPath' in view, false);
   assert.equal('pipelineStatus' in view, false);
 });
+
+test('memberLanguages parses CSV, dedupes, falls back to legacy column', async () => {
+  const { memberLanguages } = await import('../lib/db.mjs');
+  assert.deepEqual(memberLanguages({ languages: 'az,ru' }), ['az', 'ru']);
+  assert.deepEqual(memberLanguages({ languages: 'ru,ru,xx' }), ['ru']);
+  assert.deepEqual(memberLanguages({ language: 'az' }), ['az']);
+  assert.deepEqual(memberLanguages({}), ['en']);
+  assert.deepEqual(memberLanguages(null), ['en']);
+});

@@ -145,3 +145,7 @@ select {
 .ghost-link { color: var(--muted); font-size: 0.85rem; text-decoration: none; border: 1px solid var(--line); border-radius: 10px; padding: 6px 12px; }
 
 #invite-result { word-break: break-all; color: var(--accent); }
+
+.checks { align-items: center; }
+.check { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 0.85rem; }
+.check input { width: auto; }

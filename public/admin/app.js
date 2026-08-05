@@ -51,16 +51,18 @@ async function loadMembers() {
   for (const m of data.members) {
     const li = el('li', null);
     li.appendChild(el('strong', null, m.name));
-    li.appendChild(el('span', 'muted small', `  ${m.role} · ${m.language}${m.consentShownAt ? ' · joined' : ' · invited, not joined yet'}`));
+    li.appendChild(el('span', 'muted small', `  ${m.role} · ${m.languages || m.language}${m.consentShownAt ? ' · joined' : ' · invited, not joined yet'}`));
     list.appendChild(li);
   }
 }
 document.getElementById('invite-create').addEventListener('click', async () => {
   const name = document.getElementById('invite-name').value.trim();
   const language = document.getElementById('invite-lang').value;
+  const languages = [...document.querySelectorAll('.invite-extra:checked')].map((c) => c.value);
   if (!name) return;
   const data = await api('/api/admin/invites', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, language }),
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, language, languages }),
   });
   const out = document.getElementById('invite-result');
   out.hidden = false;
