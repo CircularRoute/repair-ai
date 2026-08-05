@@ -62,8 +62,9 @@ test('conversation cap: 4 replies, then the verbatim line, then silence, then re
   assert.equal(exchangeGate(db, 'p_e', now), 'cap');
   recordOttoReply(db, 'p_e', { capped: true }, now);
   assert.equal(exchangeGate(db, 'p_e', new Date(now.getTime() + 60 * 1000)), 'silent');
-  // After a 30+ minute gap the exchange resets.
-  assert.equal(exchangeGate(db, 'p_e', new Date(now.getTime() + 35 * 60 * 1000)), 'reply');
+  // Still capped inside the 60-minute window; a longer gap resets the exchange.
+  assert.equal(exchangeGate(db, 'p_e', new Date(now.getTime() + 35 * 60 * 1000)), 'silent');
+  assert.equal(exchangeGate(db, 'p_e', new Date(now.getTime() + 65 * 60 * 1000)), 'reply');
 });
 
 test('cap is admin-tunable', () => {
@@ -88,9 +89,10 @@ test('proactive budget: lull required, spacing, daily budget, mute', () => {
   insertMessage(db2, { senderId: 'p_e', senderKind: 'member', kind: 'text', originalText: 'hi', ts: new Date(now.getTime() - 15 * 60 * 1000).toISOString() });
   assert.equal(canIntervene(db2, now).ok, true);
 
-  // Spacing: a second intervention 10 minutes later is blocked.
+  // Spacing: a second intervention 2 hours later is blocked (3h default).
   recordIntervention(db2, now);
-  assert.equal(canIntervene(db2, new Date(now.getTime() + 10 * 60 * 1000)).ok, false);
+  assert.equal(canIntervene(db2, new Date(now.getTime() + 2 * 3600 * 1000)).ok, false);
+  assert.equal(canIntervene(db2, new Date(now.getTime() + 2 * 3600 * 1000)).reason, 'spacing');
 
   // Daily budget of 3.
   recordIntervention(db2, new Date(now.getTime() + 40 * 60 * 1000));
@@ -130,6 +132,9 @@ test('otto settings defaults', () => {
   const s = ottoSettings(db);
   assert.equal(s.cap, 4);
   assert.equal(s.proactivePerDay, 3);
+  assert.equal(s.spacingHours, 3);
+  assert.equal(s.resetMin, 60);
+  assert.equal(s.voice, 'echo');
   assert.equal(s.muted, false);
   assert.deepEqual(s.voiceLangs, ['en', 'ru', 'az']);
 });

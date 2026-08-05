@@ -524,6 +524,15 @@ document.getElementById('mark-research').addEventListener('click', async () => {
   document.getElementById('mark-topic').value = '';
   loadDocs();
 });
+document.getElementById('mark-refresh-all').addEventListener('click', async () => {
+  if (!confirm('Refresh all four market documents now? This runs real web research and takes a few minutes.')) return;
+  document.getElementById('mark-status').textContent = 'Refreshing all research, this takes a few minutes...';
+  const r = await api('/api/admin/mark/run', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'all' }),
+  });
+  document.getElementById('mark-status').textContent = r.error || 'All four documents refreshed.';
+  loadDocs();
+});
 for (const btn of document.querySelectorAll('.mark-run')) {
   btn.addEventListener('click', async () => {
     document.getElementById('mark-status').textContent = `Researching ${btn.dataset.type}...`;
@@ -686,12 +695,11 @@ async function loadAgentSettings() {
   document.getElementById('otto-muted').checked = s.ottoMuted;
   document.getElementById('otto-cap').value = s.ottoCap;
   document.getElementById('otto-proactive').value = s.ottoProactivePerDay;
-  document.getElementById('otto-spacing').value = s.ottoSpacingMin;
-  document.getElementById('otto-lull').value = s.ottoLullMin;
+  document.getElementById('otto-spacing').value = s.ottoSpacingHours;
   document.getElementById('otto-reset').value = s.ottoResetMin;
   document.getElementById('otto-voice-select').value = s.ottoVoice;
-  document.getElementById('digest-hour').value = s.digestHourUtc;
-  document.getElementById('synthesis-hour').value = s.synthesisHourUtc;
+  document.getElementById('digest-hour').value = s.digestHourCT;
+  document.getElementById('synthesis-hour').value = s.synthesisHourCT;
   document.getElementById('synthesis-min-msgs').value = s.synthesisMinMessages;
   document.getElementById('synthesis-min-insights').value = s.synthesisMinInsights;
   document.getElementById('mark-refresh-days').value = s.markRefreshDays;
@@ -708,14 +716,13 @@ document.getElementById('agent-save').addEventListener('click', async () => {
       ottoMuted: document.getElementById('otto-muted').checked,
       ottoCap: Number(document.getElementById('otto-cap').value),
       ottoProactivePerDay: Number(document.getElementById('otto-proactive').value),
-      ottoSpacingMin: Number(document.getElementById('otto-spacing').value),
-      ottoLullMin: Number(document.getElementById('otto-lull').value),
+      ottoSpacingHours: Number(document.getElementById('otto-spacing').value),
       ottoResetMin: Number(document.getElementById('otto-reset').value),
       ottoVoice: document.getElementById('otto-voice-select').value,
       ottoVoiceLangs: [...document.querySelectorAll('.otto-voice:checked')].map((c) => c.value).join(','),
       bobFable: document.getElementById('bob-fable').checked,
-      digestHourUtc: Number(document.getElementById('digest-hour').value),
-      synthesisHourUtc: Number(document.getElementById('synthesis-hour').value),
+      digestHourCT: Number(document.getElementById('digest-hour').value),
+      synthesisHourCT: Number(document.getElementById('synthesis-hour').value),
       synthesisMinMessages: Number(document.getElementById('synthesis-min-msgs').value),
       synthesisMinInsights: Number(document.getElementById('synthesis-min-insights').value),
       markRefreshDays: Number(document.getElementById('mark-refresh-days').value),

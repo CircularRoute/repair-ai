@@ -147,6 +147,7 @@
           <button class="ghost mark-run" data-type="competitor-tracker">Competitor tracker</button>
           <button class="ghost mark-run" data-type="targeting-icp">Targeting and ICP</button>
           <button class="ghost mark-run" data-type="channel-opportunities">Channels</button>
+          <button id="mark-refresh-all">Refresh all research now</button>
         </div>
         <p id="mark-status" class="muted small"></p>
         <div id="mark-queue" class="muted small"></div>
@@ -224,10 +225,8 @@
           <input id="otto-proactive" type="number" min="0" max="20" class="inline-num">
         </div>
         <div class="row">
-          <span class="muted small">Min. minutes between proactive questions:</span>
-          <input id="otto-spacing" type="number" min="5" max="240" class="inline-num">
-          <span class="muted small">Quiet minutes before speaking (lull):</span>
-          <input id="otto-lull" type="number" min="2" max="120" class="inline-num">
+          <span class="muted small">Min. hours between proactive questions:</span>
+          <input id="otto-spacing" type="number" min="1" max="24" class="inline-num">
         </div>
         <div class="row">
           <span class="muted small">Exchange resets after (minutes):</span>
@@ -249,9 +248,9 @@
         <h3>Bob</h3>
         <div class="row"><label class="check"><input type="checkbox" id="bob-fable"> Use Fable 5 for the daily deep synthesis</label></div>
         <div class="row">
-          <span class="muted small">Digest hour (UTC):</span>
+          <span class="muted small">Digest hour (CT, Austin):</span>
           <input id="digest-hour" type="number" min="0" max="23" class="inline-num">
-          <span class="muted small">Synthesis hour (UTC):</span>
+          <span class="muted small">Synthesis hour (CT, Austin):</span>
           <input id="synthesis-hour" type="number" min="0" max="23" class="inline-num">
         </div>
         <div class="row">

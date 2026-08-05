@@ -34,7 +34,7 @@ import {
   canIntervene, recordIntervention, memberPrefersVoice, generateReply, generateIntervention,
   fileAgentRequest, answerAgentRequest, generateRelay,
 } from './lib/otto-engine.mjs';
-import { MARK_DOC_TYPES, runMarkDocument, runMarkCustom, answerFromResearch, queueResearch, getQueue, maybeRunMarkWeekly, markChat, markChatHistory, getDirectives, removeDirective } from './lib/mark.mjs';
+import { MARK_DOC_TYPES, runMarkDocument, runMarkCustom, runMarkAll, answerFromResearch, queueResearch, getQueue, maybeRunMarkWeekly, markChat, markChatHistory, getDirectives, removeDirective } from './lib/mark.mjs';
 import { transcribe } from './lib/voice.mjs';
 import { listTools, registerTool, retireTool } from './lib/tools.mjs';
 import { addKnowledgeFile, addKnowledgeNote, addKnowledgeLink, listKnowledge, retireKnowledge } from './lib/knowledge.mjs';
@@ -924,6 +924,10 @@ const server = createServer(async (req, res) => {
           const r = await runMarkCustom(db, String(body.topic).slice(0, 400), { onBlock });
           return sendJson(res, 200, { ok: true, version: r.version });
         }
+        if (body.type === 'all') {
+          const results = await runMarkAll(db, { onBlock });
+          return sendJson(res, 200, { ok: true, results });
+        }
         if (!MARK_DOC_TYPES.includes(body.type)) return sendJson(res, 400, { error: 'unknown market document' });
         const r = await runMarkDocument(db, body.type, { onBlock });
         return sendJson(res, 200, { ok: true, version: r.version });
@@ -1056,14 +1060,14 @@ const server = createServer(async (req, res) => {
       const s = ottoSettings(db);
       return sendJson(res, 200, {
         ottoMuted: s.muted, ottoCap: s.cap, ottoProactivePerDay: s.proactivePerDay,
-        ottoSpacingMin: s.spacingMin, ottoLullMin: s.lullMin, ottoResetMin: s.resetMin,
+        ottoSpacingHours: s.spacingHours, ottoResetMin: s.resetMin,
         ottoVoice: s.voice, ottoVoiceLangs: s.voiceLangs.join(','),
         bobFable: getSetting(db, 'bobFable', '0') === '1',
-        digestHourUtc: Number(getSetting(db, 'digestHourUtc', 3)),
-        synthesisHourUtc: Number(getSetting(db, 'synthesisHourUtc', 4)),
+        digestHourCT: Number(getSetting(db, 'digestHourCT', 22)),
+        synthesisHourCT: Number(getSetting(db, 'synthesisHourCT', 23)),
         synthesisMinMessages: Number(getSetting(db, 'synthesisMinMessages', 3)),
         synthesisMinInsights: Number(getSetting(db, 'synthesisMinInsights', 1)),
-        insightsIntervalHours: Number(getSetting(db, 'insightsIntervalHours', 20)),
+        insightsIntervalHours: Number(getSetting(db, 'insightsIntervalHours', 6)),
         markRefreshDays: Number(getSetting(db, 'markRefreshDays', 7)),
       });
     }
@@ -1078,8 +1082,8 @@ const server = createServer(async (req, res) => {
       }
       if (body.bobFable !== undefined) setSetting(db, 'bobFable', body.bobFable ? '1' : '0');
       const numeric = {
-        ottoSpacingMin: [5, 240], ottoLullMin: [2, 120], ottoResetMin: [10, 240],
-        digestHourUtc: [0, 23], synthesisHourUtc: [0, 23],
+        ottoSpacingHours: [1, 24], ottoResetMin: [10, 240],
+        digestHourCT: [0, 23], synthesisHourCT: [0, 23],
         synthesisMinMessages: [1, 50], synthesisMinInsights: [0, 20],
         insightsIntervalHours: [1, 72], markRefreshDays: [1, 30],
       };
