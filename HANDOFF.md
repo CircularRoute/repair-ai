@@ -48,7 +48,10 @@ this document is the source of truth for what exists.
   Knowledge answering per ruling 22: genuine questions get real answers
   (general knowledge + shared corpus incl. Bob/Mark docs, up to 5 plain
   sentences); check-with reserved for current/local market specifics (Mark)
-  and group synthesis (Bob). Eval covers it (9 scenarios).
+  and group synthesis (Bob). Eval covers it (9 scenarios). Voice per ruling
+  23: Otto knows he hears voice notes (transcribed) and can reply in voice;
+  per-member Voice preference (auto/always/never) in the Members card; the
+  AZ post-editor is code-guarded against meta-text leaking into transcripts.
   TTS voice per rulings 20-21: cedar (closest API voice to ChatGPT's Cove)
   with natural-delivery style instructions.
 - Phase 4: Bob. Five living documents (problem-map, opportunity-register,

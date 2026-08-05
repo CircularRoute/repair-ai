@@ -76,6 +76,20 @@ async function loadMembers() {
       loadMembers();
     });
     li.appendChild(langBtn);
+    // Ruling 23: cycle how Otto's replies reach this member.
+    const prefs = ['auto', 'always', 'never'];
+    const voiceBtn = el('button', 'ghost', `Voice: ${m.voicePref || 'auto'}`);
+    voiceBtn.title = 'Otto replies to this member as: auto = voice for voice-heavy members, always = every reply a voice note, never = text only';
+    voiceBtn.addEventListener('click', async () => {
+      const next = prefs[(prefs.indexOf(m.voicePref || 'auto') + 1) % prefs.length];
+      const resp = await api('/api/admin/members/voicepref', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberId: m.id, voicePref: next }),
+      });
+      if (resp.error) alert(resp.error);
+      loadMembers();
+    });
+    li.appendChild(voiceBtn);
     if (m.role !== 'admin') {
       const btn = el('button', 'ghost danger', 'Remove');
       btn.addEventListener('click', async () => {

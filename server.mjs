@@ -188,11 +188,17 @@ function serveStoredFile(req, res, filePath, { fileName, mime, inlineAudio = fal
 async function postOttoMessage(text, { language = null, memberIdFor = null } = {}) {
   let audioPath = null;
   const settings = ottoSettings(db);
+  // Ruling 23: an explicit member preference beats the rationing heuristic.
+  const pref = memberIdFor
+    ? db.prepare('SELECT voicePref FROM members WHERE id = ?').get(memberIdFor)?.voicePref || 'auto'
+    : 'auto';
   const isQuestion = text.includes('?') && text.length <= 350;
+  const wantsVoice =
+    pref === 'always' ||
+    (pref === 'auto' && isQuestion && memberPrefersVoice(db, memberIdFor));
   if (
-    memberIdFor && isQuestion &&
-    settings.voiceLangs.includes(language || 'en') &&
-    memberPrefersVoice(db, memberIdFor)
+    memberIdFor && pref !== 'never' && wantsVoice &&
+    settings.voiceLangs.includes(language || 'en')
   ) {
     try {
       const buf = await tts(db, { text, voice: settings.voice || 'echo', agent: 'otto' });
@@ -624,7 +630,7 @@ const server = createServer(async (req, res) => {
     // ---------- Admin APIs ----------
     if (path === '/api/admin/members' && req.method === 'GET') {
       if (!requireAdmin(req, res)) return;
-      const members = db.prepare("SELECT id, name, role, language, languages, email, status, joinedAt, consentShownAt FROM members ORDER BY joinedAt").all();
+      const members = db.prepare("SELECT id, name, role, language, languages, email, status, joinedAt, consentShownAt, voicePref FROM members ORDER BY joinedAt").all();
       const invites = db.prepare(
         "SELECT ml.token, ml.memberId, ml.expiresAt, ml.usedAt, m.name FROM magic_links ml JOIN members m ON m.id = ml.memberId WHERE ml.purpose = 'invite' ORDER BY ml.createdAt DESC LIMIT 20"
       ).all();
@@ -684,6 +690,20 @@ const server = createServer(async (req, res) => {
         .run(unique[0], unique.join(','), member.id);
       logEvent(db, 'member.languages_changed', { memberId: member.id, languages: unique.join(',') });
       return sendJson(res, 200, { ok: true, language: unique[0], languages: unique.join(',') });
+    }
+
+    // Ruling 23: per-member voice delivery preference for Otto's replies.
+    if (path === '/api/admin/members/voicepref' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const body = await readJsonBody(req);
+      const member = db.prepare('SELECT * FROM members WHERE id = ?').get(body.memberId || '');
+      if (!member) return sendJson(res, 404, { error: 'member not found' });
+      if (!['auto', 'always', 'never'].includes(body.voicePref)) {
+        return sendJson(res, 400, { error: 'voicePref must be auto, always, or never' });
+      }
+      db.prepare('UPDATE members SET voicePref = ? WHERE id = ?').run(body.voicePref, member.id);
+      logEvent(db, 'member.voicepref_changed', { memberId: member.id, voicePref: body.voicePref });
+      return sendJson(res, 200, { ok: true, voicePref: body.voicePref });
     }
 
     // Remove (retire) a member: never-delete rule, so data stays; the member

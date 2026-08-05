@@ -211,3 +211,19 @@ the parent folder; no Render API keys.
     current offering), to Bob only for group-wide synthesis. Answering
     questions is explicitly not solution design; rule 1 stands. Eval gained
     a knowledge-question scenario.
+
+23. 2026-08-05 - Voice replies honesty and preference (from the live Zaur
+    incident, first day with real partners): Otto denied supporting voice
+    messages INSIDE a voice note, because his prompt never told him voice
+    notes are transcribed for him or that his replies can be TTS-delivered.
+    Fixed three ways: (a) Otto's prompt now states his real capabilities
+    (he hears every voice note via transcription, his replies can be voice)
+    and forbids denying them; when a member asks for voice replies he says
+    Rashad can switch it on. (b) Per-member voice preference on the member
+    record (auto = rationing heuristic, always = every Otto reply to them
+    is a voice note, never = text only), set from the dashboard Members
+    card; Zaur set to always per his request. (c) The AZ transcript
+    post-editor is guarded in code: output that leaks model meta-text
+    ("I need to correct...") or balloons is discarded and the raw
+    transcript kept, so model chatter can never appear as a member's words
+    (also from the live log, a noise voice note at 15:45).
