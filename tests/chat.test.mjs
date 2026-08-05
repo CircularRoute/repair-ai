@@ -63,3 +63,23 @@ test('memberLanguages parses CSV, dedupes, falls back to legacy column', async (
   assert.deepEqual(memberLanguages({}), ['en']);
   assert.deepEqual(memberLanguages(null), ['en']);
 });
+
+test('retiring a member kills their sessions and unused invites, keeps messages', async () => {
+  const { createSession, getSession } = await import('../lib/auth.mjs');
+  const db = freshDb();
+  db.prepare("INSERT INTO members (id, name, role, language, joinedAt) VALUES ('p_r', 'Temp', 'partner', 'en', ?)")
+    .run(new Date().toISOString());
+  const s = createSession(db, 'p_r');
+  const link = mintMagicLink(db, 'p_r', 'invite');
+  insertMessage(db, { senderId: 'p_r', senderKind: 'member', kind: 'text', originalText: 'kept' });
+
+  const now = new Date().toISOString();
+  db.prepare("UPDATE members SET status = 'retired' WHERE id = 'p_r'").run();
+  db.prepare("UPDATE sessions SET status = 'retired' WHERE memberId = 'p_r'").run();
+  db.prepare("UPDATE magic_links SET usedAt = ? WHERE memberId = 'p_r' AND usedAt IS NULL").run(now);
+
+  assert.equal(getSession(db, s.id), null);
+  assert.equal(consumeMagicLink(db, link.token), null);
+  assert.equal(db.prepare("SELECT COUNT(*) AS c FROM messages WHERE senderId = 'p_r'").get().c, 1);
+  assert.equal(db.prepare("SELECT status FROM members WHERE id = 'p_r'").get().status, 'retired');
+});

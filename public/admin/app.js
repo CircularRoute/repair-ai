@@ -48,11 +48,30 @@ async function loadMembers() {
   const data = await api('/api/admin/members');
   const list = document.getElementById('member-list');
   list.innerHTML = '';
-  for (const m of data.members) {
-    const li = el('li', null);
-    li.appendChild(el('strong', null, m.name));
-    li.appendChild(el('span', 'muted small', `  ${m.role} · ${m.languages || m.language}${m.consentShownAt ? ' · joined' : ' · invited, not joined yet'}`));
+  const active = data.members.filter((m) => m.status !== 'retired');
+  const retired = data.members.filter((m) => m.status === 'retired');
+  for (const m of active) {
+    const li = el('li', 'member-row');
+    const info = el('span');
+    info.appendChild(el('strong', null, m.name));
+    info.appendChild(el('span', 'muted small', `  ${m.role} · ${m.languages || m.language}${m.consentShownAt ? ' · joined' : ' · invited, not joined yet'}`));
+    li.appendChild(info);
+    if (m.role !== 'admin') {
+      const btn = el('button', 'ghost danger', 'Remove');
+      btn.addEventListener('click', async () => {
+        if (!confirm(`Remove ${m.name}? They lose access immediately; their messages stay in the corpus.`)) return;
+        await api('/api/admin/members/remove', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ memberId: m.id }),
+        });
+        loadMembers();
+      });
+      li.appendChild(btn);
+    }
     list.appendChild(li);
+  }
+  if (retired.length) {
+    list.appendChild(el('li', 'muted small', `Removed: ${retired.map((m) => m.name).join(', ')}`));
   }
 }
 document.getElementById('invite-create').addEventListener('click', async () => {

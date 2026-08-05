@@ -413,6 +413,25 @@ const server = createServer(async (req, res) => {
       return sendJson(res, 200, { url: `${url.origin}/join/${link.token}`, memberId, expiresAt: link.expiresAt });
     }
 
+    // Remove (retire) a member: never-delete rule, so data stays; the member
+    // loses access (sessions retired, unused invites voided) and leaves the
+    // active list. Admin-only; the admin cannot remove themselves.
+    if (path === '/api/admin/members/remove' && req.method === 'POST') {
+      const session = requireAdmin(req, res);
+      if (!session) return;
+      const body = await readJsonBody(req);
+      const member = db.prepare('SELECT * FROM members WHERE id = ?').get(body.memberId || '');
+      if (!member) return sendJson(res, 404, { error: 'member not found' });
+      if (member.role === 'admin') return sendJson(res, 400, { error: 'the admin cannot be removed' });
+      const now = new Date().toISOString();
+      db.prepare("UPDATE members SET status = 'retired' WHERE id = ?").run(member.id);
+      db.prepare("UPDATE sessions SET status = 'retired' WHERE memberId = ?").run(member.id);
+      db.prepare('UPDATE magic_links SET usedAt = ? WHERE memberId = ? AND usedAt IS NULL').run(now, member.id);
+      db.prepare("UPDATE push_subscriptions SET status = 'retired' WHERE memberId = ?").run(member.id);
+      logEvent(db, 'member.retired', { memberId: member.id, name: member.name });
+      return sendJson(res, 200, { ok: true });
+    }
+
     // Corpus browser: full message rows including transcripts and translations.
     if (path === '/api/admin/messages' && req.method === 'GET') {
       if (!requireAdmin(req, res)) return;

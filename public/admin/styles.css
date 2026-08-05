@@ -132,6 +132,8 @@ select {
 }
 
 .plain-list { list-style: none; margin: 8px 0 14px; display: flex; flex-direction: column; gap: 6px; }
+.member-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+button.danger { color: var(--error); border-color: var(--error); }
 .card h3 { font-size: 0.9rem; margin-top: 6px; color: var(--muted); }
 
 .corpus-item {
