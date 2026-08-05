@@ -33,7 +33,8 @@ function renderMessage(m) {
   bubble.className = 'bubble';
 
   if (m.kind === 'voice') {
-    if (m.text) bubble.textContent = m.text;
+    // Voice bubbles show only the player; transcripts live in the admin
+    // corpus browser, not in the group chat.
     const audio = document.createElement('audio');
     audio.controls = true;
     audio.preload = 'none';
