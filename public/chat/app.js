@@ -216,10 +216,33 @@ let recWanted = false;
 const recBar = document.getElementById('rec-bar');
 const recTime = document.getElementById('rec-time');
 
+// Prefer the phone's BUILT-IN microphone over Bluetooth/car routes, like
+// native messengers do. iOS hands web apps whatever mic the system routed
+// to (often the car), and that route is what dies mid-recording; asking for
+// the built-in mic by deviceId avoids it where Safari allows.
+async function getRecordingStream() {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  try {
+    const label = stream.getAudioTracks()[0]?.label || '';
+    if (/iphone|ipad|built-in|internal/i.test(label)) return stream;
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const builtIn = devices.find(
+      (d) => d.kind === 'audioinput' && /iphone|ipad|built-in|internal/i.test(d.label));
+    if (!builtIn) return stream;
+    const better = await navigator.mediaDevices.getUserMedia({
+      audio: { deviceId: { exact: builtIn.deviceId } },
+    });
+    stream.getTracks().forEach((t) => t.stop());
+    return better;
+  } catch {
+    return stream;
+  }
+}
+
 micBtn.addEventListener('click', async () => {
   if (recorder) return;
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const stream = await getRecordingStream();
     // Prefer AAC/mp4 where supported (iOS native, plays everywhere Apple);
     // Chrome and Firefox fall back to webm/opus, which they play natively.
     const mime = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4'

@@ -197,7 +197,11 @@ in foreign scripts or judged another-language/gibberish become
 pipelineStatus='garbled' (kept for admin, correctable, never
 classified/embedded/shown to Otto); Otto posts the same deduped mic
 explanation. Not caused by model escalation or the pipeline; capture and
-playback code are fine.
+playback code are fine. The recorder now requests the phone's BUILT-IN
+microphone by deviceId when the default route is Bluetooth (what native
+messengers do); full WhatsApp-grade audio-session control is impossible
+from a web app - if silent recordings persist as a real problem, the fix
+is a thin native app wrapper (documented option, not planned).
 
 ## Known gaps and candidate next steps
 
