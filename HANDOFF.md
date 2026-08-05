@@ -31,7 +31,7 @@ this document is the source of truth for what exists.
   notifications (VAPID), capture pipeline (gpt-4o-transcribe + whisper-1
   fallback, reinforced AZ path with second pass + glossary post-edit, language
   detection from words, English shadow translation), spend meter with the
-  $20/day ceiling (ruling 10), Otto onboarding with the consent line.
+  $30/day ceiling (rulings 10, 18), Otto onboarding with the consent line.
 - Phase 2: Haiku classification against the Section 4 taxonomy, chunking,
   embeddings (text-embedding-3-large, Float32 BLOBs in SQLite, in-memory
   cosine), semantic search in the corpus browser, Sonnet insight extraction
@@ -116,7 +116,7 @@ this document is the source of truth for what exists.
   `lib/taxonomy.mjs`, `lib/embeddings.mjs` - corpus intelligence.
 - `lib/mark.mjs` - research runs, market docs, chat/taskings/directives,
   shelf answers, queue. `lib/tools.mjs`, `lib/knowledge.mjs` - Phase 6.
-- `lib/spend.mjs` - $20/day ceiling, trilingual block notice, admin-only
+- `lib/spend.mjs` - $30/day ceiling, trilingual block notice, admin-only
   unblock, capture never stops. `lib/chat.mjs`, `lib/push.mjs`,
   `lib/files.mjs`, `lib/auth.mjs`, `lib/email.mjs`, `lib/lang.mjs` - plumbing.
 - Frontend: `public/chat/` (member PWA), `public/admin/` (dashboard PWA),

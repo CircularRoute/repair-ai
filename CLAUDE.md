@@ -22,7 +22,7 @@ All six spec phases are BUILT, accepted, and live at https://otto.repairnow.app.
 runbook, and open items. `decisions.md` holds every founder ruling (1-15),
 several of which supersede spec defaults (daily gated synthesis instead of
 weekly, Otto engagement rule, email allowlist sign-in via Brevo, message
-deletion, multi-language members, $20/day ceiling). Read both before changing
+deletion, multi-language members, $30/day ceiling). Read both before changing
 anything.
 
 ## What gets built here

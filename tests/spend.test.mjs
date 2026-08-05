@@ -12,10 +12,10 @@ test('cost math matches the price table', () => {
   assert.equal(costUsd('unknown-model', 1_000_000, 1_000_000), 0);
 });
 
-test('ceiling defaults to $20 and is tunable', () => {
+test('ceiling defaults to $30 and is tunable', () => {
   const db = openDb({ path: ':memory:' });
   assert.equal(getCeiling(db), DEFAULT_CEILING_USD);
-  assert.equal(DEFAULT_CEILING_USD, 20);
+  assert.equal(DEFAULT_CEILING_USD, 30);
   setCeiling(db, 35);
   assert.equal(getCeiling(db), 35);
 });

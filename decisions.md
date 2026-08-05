@@ -161,3 +161,8 @@ the parent folder; no Render API keys.
     The banner still nags users who simply have not enabled push yet. The
     bell is the way back in; re-enabling reactivates the same subscription
     row. Members can only disable their own subscriptions.
+
+18. 2026-08-05 - Daily cost ceiling raised to $30/day (from the $20 ruled in
+    ruling 10; everything else in ruling 10 stands unchanged). Applied
+    immediately on production via the admin API and made the new code
+    default.

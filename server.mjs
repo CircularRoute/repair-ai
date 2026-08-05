@@ -1,6 +1,6 @@
 // Repair AI - single service, no framework. Phase 1: member chat PWA (text, voice,
 // allowlisted attachments), invite flow, capture pipeline, push notifications,
-// spend meter with the $20/day ceiling, Otto onboarding-only.
+// spend meter with the $30/day ceiling, Otto onboarding-only.
 
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync, createReadStream, readdirSync, unlinkSync } from 'node:fs';
