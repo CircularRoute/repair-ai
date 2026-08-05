@@ -324,36 +324,89 @@ async function loadTaxonomy() {
   }
 }
 
-// --- Bob chat ---
-function addBobMsg(role, text, pending = false) {
-  const box = document.getElementById('bob-chat');
-  const div = el('div', `bob-msg ${role}${pending ? ' pending' : ''}`, text);
+// --- Agent chats (Bob and Mark share the machinery) ---
+function addChatMsg(boxId, role, text, pending = false) {
+  const box = document.getElementById(boxId);
+  const div = el('div', `bob-msg ${role === 'admin' ? 'admin' : 'bob'}${pending ? ' pending' : ''}`, text);
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
   return div;
 }
-async function loadBobChat() {
-  const data = await api('/api/admin/bob-chat');
-  const box = document.getElementById('bob-chat');
+async function loadAgentChat(agent, boxId, emptyLine) {
+  const data = await api(`/api/admin/${agent}-chat`);
+  const box = document.getElementById(boxId);
   box.innerHTML = '';
-  if (!data.messages.length) addBobMsg('bob', 'Ask me anything about what the group has said so far. I cite my sources.');
-  for (const m of data.messages) addBobMsg(m.role, m.content);
+  if (!data.messages.length) addChatMsg(boxId, 'bob', emptyLine);
+  for (const m of data.messages) addChatMsg(boxId, m.role, m.content);
 }
-async function sendToBob() {
-  const input = document.getElementById('bob-input');
+const loadBobChat = () => loadAgentChat('bob', 'bob-chat', 'Ask me anything about what the group has said so far. I cite my sources.');
+const loadMarkChat = () => loadAgentChat('mark', 'mark-chat', 'Ask me about the market, competitors, or anything I have researched.');
+
+async function sendToAgent(agent, inputId, boxId) {
+  const input = document.getElementById(inputId);
   const text = input.value.trim();
   if (!text) return;
   input.value = '';
-  addBobMsg('admin', text);
-  const pending = addBobMsg('bob', 'Thinking...', true);
-  const data = await api('/api/admin/bob-chat', {
+  addChatMsg(boxId, 'admin', text);
+  const pending = addChatMsg(boxId, 'bob', 'Thinking...', true);
+  const data = await api(`/api/admin/${agent}-chat`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }),
   });
   pending.remove();
-  addBobMsg('bob', data.reply || data.error || 'Something went wrong.');
+  addChatMsg(boxId, 'bob', data.reply || data.error || 'Something went wrong.');
 }
+const sendToBob = () => sendToAgent('bob', 'bob-input', 'bob-chat');
+const sendToMark = () => sendToAgent('mark', 'mark-input', 'mark-chat');
 document.getElementById('bob-send').addEventListener('click', sendToBob);
 document.getElementById('bob-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendToBob(); });
+document.getElementById('mark-send').addEventListener('click', sendToMark);
+document.getElementById('mark-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendToMark(); });
+
+// Voice questions: tap the mic to record, tap again to stop; the transcript
+// lands in the input and sends itself.
+function setupMic(btnId, inputId, sendFn) {
+  const btn = document.getElementById(btnId);
+  let recorder = null;
+  btn.addEventListener('click', async () => {
+    if (recorder) {
+      recorder.stop();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4'
+        : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+      recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      const chunks = [];
+      recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const type = recorder.mimeType || 'audio/mp4';
+        recorder = null;
+        btn.classList.remove('recording');
+        const blob = new Blob(chunks, { type });
+        if (!blob.size) return;
+        const input = document.getElementById(inputId);
+        input.value = 'Transcribing...';
+        const res = await fetch('/api/admin/transcribe', { method: 'POST', headers: { 'Content-Type': type }, body: blob });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.text) {
+          input.value = data.text;
+          sendFn();
+        } else {
+          input.value = '';
+          alert(data.error || 'Could not transcribe.');
+        }
+      };
+      recorder.start();
+      btn.classList.add('recording');
+    } catch {
+      alert('Microphone access is needed to record a question.');
+    }
+  });
+}
+setupMic('bob-mic', 'bob-input', sendToBob);
+setupMic('mark-mic', 'mark-input', sendToMark);
 
 // --- Living documents ---
 async function loadDocs() {
@@ -410,6 +463,98 @@ document.getElementById('docs-run-digest').addEventListener('click', async () =>
 });
 document.getElementById('docs-details').addEventListener('toggle', loadDocs);
 
+// --- Mark ---
+async function loadMarkQueue() {
+  const data = await api('/api/admin/mark/queue');
+  document.getElementById('mark-mini').textContent = data.queue.length ? `${data.queue.length} queued` : 'market analyst';
+  const box = document.getElementById('mark-queue');
+  box.innerHTML = '';
+  if (data.queue.length) box.appendChild(el('div', null, 'Research queue: ' + data.queue.join(' · ')));
+  if (data.directives?.length) {
+    box.appendChild(el('div', null, 'Standing instructions:'));
+    data.directives.forEach((d, i) => {
+      const row = el('div', 'row');
+      row.appendChild(el('span', 'small', d));
+      const rm = el('button', 'ghost danger', 'Remove');
+      rm.addEventListener('click', async () => {
+        await api('/api/admin/mark/directives/remove', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ index: i }),
+        });
+        loadMarkQueue();
+      });
+      row.appendChild(rm);
+      box.appendChild(row);
+    });
+  }
+}
+document.getElementById('mark-research').addEventListener('click', async () => {
+  const topic = document.getElementById('mark-topic').value.trim();
+  if (!topic) return;
+  document.getElementById('mark-status').textContent = 'Mark is researching, give it a minute...';
+  const r = await api('/api/admin/mark/run', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ topic }),
+  });
+  document.getElementById('mark-status').textContent = r.error || 'Done, see market-note under Living documents.';
+  document.getElementById('mark-topic').value = '';
+  loadDocs();
+});
+for (const btn of document.querySelectorAll('.mark-run')) {
+  btn.addEventListener('click', async () => {
+    document.getElementById('mark-status').textContent = `Researching ${btn.dataset.type}...`;
+    const r = await api('/api/admin/mark/run', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: btn.dataset.type }),
+    });
+    document.getElementById('mark-status').textContent = r.error || `${btn.dataset.type} updated.`;
+    loadDocs();
+  });
+}
+
+// --- Agent requests (check-with queue) ---
+async function loadRequests() {
+  const data = await api('/api/admin/agent-requests');
+  const open = data.requests.filter((r) => r.status === 'open').length;
+  document.getElementById('requests-mini').textContent = data.requests.length
+    ? `${data.requests.length} total${open ? `, ${open} open` : ''}` : 'none yet';
+  const list = document.getElementById('requests-list');
+  list.innerHTML = '';
+  if (!data.requests.length) list.appendChild(el('div', 'muted small', 'No requests yet.'));
+  for (const r of data.requests) {
+    const item = el('div', 'corpus-item');
+    item.appendChild(el('div', null, `${r.fromAgent} asked ${r.toAgent}: ${r.question}`));
+    item.appendChild(el('div', 'muted small', `${r.status} · ${new Date(r.askedAt).toLocaleString()}`));
+    if (r.answer) item.appendChild(el('div', 'muted small', `Answer: ${r.answer.slice(0, 300)}`));
+    if (r.status === 'open' || r.status === 'declined') {
+      const row = el('div', 'row');
+      const input = document.createElement('input');
+      input.placeholder = 'Answer by hand (Otto relays it)';
+      const send = el('button', 'ghost', 'Answer');
+      send.addEventListener('click', async () => {
+        if (!input.value.trim()) return;
+        await api('/api/admin/agent-requests/answer', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: r.id, answer: input.value.trim() }),
+        });
+        loadRequests();
+      });
+      row.appendChild(input);
+      row.appendChild(send);
+      if (r.status === 'open') {
+        const cancel = el('button', 'ghost danger', 'Cancel');
+        cancel.addEventListener('click', async () => {
+          await api('/api/admin/agent-requests/cancel', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: r.id }),
+          });
+          loadRequests();
+        });
+        row.appendChild(cancel);
+      }
+      item.appendChild(row);
+    }
+    list.appendChild(item);
+  }
+}
+document.getElementById('requests-details').addEventListener('toggle', loadRequests);
+
 // --- Agent controls ---
 async function loadAgentSettings() {
   const s = await api('/api/admin/agent-settings');
@@ -444,7 +589,7 @@ async function init() {
   document.getElementById('whoami').textContent = meData.name;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/admin/sw.js');
   document.getElementById('corpus-details').addEventListener('toggle', loadCorpus);
-  await Promise.all([loadSpend(), loadMembers(), loadTaxonomy(), loadAgentSettings(), loadBobChat(), loadDocs()]);
+  await Promise.all([loadSpend(), loadMembers(), loadTaxonomy(), loadAgentSettings(), loadBobChat(), loadMarkChat(), loadDocs(), loadMarkQueue(), loadRequests()]);
   setInterval(loadSpend, 30000);
   setInterval(loadCorpus, 30000);
 }

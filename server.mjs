@@ -30,9 +30,13 @@ import { embedTexts, rankChunks, blobToVector, cosine } from './lib/embeddings.m
 import { runExtraction, maybeRunScheduled } from './lib/insights.mjs';
 import { validTags } from './lib/taxonomy.mjs';
 import {
-  CAP_LINES, ottoSettings, isEngagement, exchangeGate, recordOttoReply,
+  CAP_LINES, CHECK_ACK, CHECK_THIN, ottoSettings, isEngagement, exchangeGate, recordOttoReply,
   canIntervene, recordIntervention, memberPrefersVoice, generateReply, generateIntervention,
+  fileAgentRequest, answerAgentRequest, generateRelay,
 } from './lib/otto-engine.mjs';
+import { MARK_DOC_TYPES, runMarkDocument, runMarkCustom, answerFromResearch, queueResearch, getQueue, maybeRunMarkWeekly, markChat, markChatHistory, getDirectives, removeDirective } from './lib/mark.mjs';
+import { transcribe } from './lib/voice.mjs';
+import { bobAnswerQuestion } from './lib/bob.mjs';
 import { tts } from './lib/voice.mjs';
 import {
   DOCUMENT_TYPES, getDocuments, getDocument, generateDocument, weeklySynthesis,
@@ -225,13 +229,45 @@ async function ottoConsider(processedMsg) {
       logEvent(db, 'otto.capped', { memberId: processedMsg.senderId });
       return;
     }
-    const reply = await generateReply(db, processedMsg, { onBlock });
-    if (!reply) return;
-    await postOttoMessage(reply, { language, memberIdFor: processedMsg.senderId });
+    const result = await generateReply(db, processedMsg, { onBlock });
+    if (!result) return;
+    if (result.kind === 'check') {
+      // Check-with protocol (spec 7b): acknowledge, file, resolve, relay.
+      await postOttoMessage((CHECK_ACK[result.toAgent] || CHECK_ACK.mark)[language] || CHECK_ACK[result.toAgent].en, { language });
+      recordOttoReply(db, processedMsg.senderId);
+      const requestId = fileAgentRequest(db, {
+        toAgent: result.toAgent, question: result.question, contextRefs: [processedMsg.id],
+      });
+      resolveAgentRequest(requestId, result.toAgent, result.question, {
+        language, memberName: db.prepare('SELECT name FROM members WHERE id = ?').get(processedMsg.senderId)?.name || 'the member',
+      }).catch((err) => logEvent(db, 'agent_request.error', { requestId, error: err.message }));
+      return;
+    }
+    await postOttoMessage(result.text, { language, memberIdFor: processedMsg.senderId });
     recordOttoReply(db, processedMsg.senderId);
     logEvent(db, 'otto.replied', { to: processedMsg.senderId });
   } catch (err) {
     if (err.code !== 'SPEND_BLOCKED') logEvent(db, 'otto.error', { error: err.message });
+  }
+}
+
+// Resolves a check-with request: Bob answers from retrieval, Mark from his
+// existing research shelf; thin answers queue research and say so plainly.
+async function resolveAgentRequest(requestId, toAgent, question, { language, memberName }) {
+  const answer = toAgent === 'bob'
+    ? await bobAnswerQuestion(db, question, { onBlock })
+    : await answerFromResearch(db, question, { onBlock });
+  if (!answer) {
+    if (toAgent === 'mark') queueResearch(db, question);
+    answerAgentRequest(db, requestId, null, 'declined');
+    await postOttoMessage((CHECK_THIN[toAgent] || CHECK_THIN.mark)[language] || CHECK_THIN[toAgent].en, { language });
+    return;
+  }
+  answerAgentRequest(db, requestId, answer, 'answered');
+  const relay = await generateRelay(db, { toAgent, answer, language, memberName }, { onBlock });
+  if (relay) {
+    await postOttoMessage(relay, { language });
+    answerAgentRequest(db, requestId, answer, 'relayed');
   }
 }
 
@@ -790,6 +826,49 @@ const server = createServer(async (req, res) => {
       }
     }
 
+    if (path === '/api/admin/mark-chat' && req.method === 'GET') {
+      if (!requireAdmin(req, res)) return;
+      return sendJson(res, 200, { messages: markChatHistory(db) });
+    }
+    if (path === '/api/admin/mark-chat' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const body = await readJsonBody(req);
+      const text = String(body.text || '').trim();
+      if (!text) return sendJson(res, 400, { error: 'empty message' });
+      try {
+        const reply = await markChat(db, text, { onBlock });
+        return sendJson(res, 200, { reply });
+      } catch (err) {
+        if (err.code === 'SPEND_BLOCKED') return sendJson(res, 409, { error: 'spend ceiling reached; unblock first' });
+        logEvent(db, 'mark.chat_error', { error: err.message });
+        return sendJson(res, 500, { error: err.message });
+      }
+    }
+
+    // Voice questions to Bob/Mark: raw audio in, transcript out. The audio is
+    // retained under the never-delete rule; the transcript goes back to the
+    // dashboard, which submits it as a normal chat message.
+    if (path === '/api/admin/transcribe' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const mime = (req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+      const ext = mime.includes('webm') ? 'webm' : mime.includes('ogg') ? 'ogg' : mime.includes('mp4') || mime.includes('m4a') || mime.includes('aac') || mime.includes('3gpp') ? 'm4a' : mime.includes('wav') ? 'wav' : mime.includes('mpeg') || mime.includes('mp3') ? 'mp3' : null;
+      if (!ext) return sendJson(res, 400, { error: `unsupported audio type (${mime || 'none'})` });
+      let buf;
+      try {
+        buf = await readBody(req, MAX_AUDIO_BYTES);
+      } catch {
+        return sendJson(res, 413, { error: 'audio too large' });
+      }
+      if (!buf.length) return sendJson(res, 400, { error: 'empty audio' });
+      const stored = storeFile(dataDir, 'audio', ext, buf);
+      try {
+        const result = await transcribe(db, { audioPath: stored.path });
+        return sendJson(res, 200, { text: result.text });
+      } catch (err) {
+        return sendJson(res, 500, { error: `transcription failed: ${err.message}` });
+      }
+    }
+
     if (path === '/api/admin/documents' && req.method === 'GET') {
       if (!requireAdmin(req, res)) return;
       return sendJson(res, 200, { documents: getDocuments(db) });
@@ -820,6 +899,69 @@ const server = createServer(async (req, res) => {
         logEvent(db, 'bob.run_error', { error: err.message });
         return sendJson(res, 500, { error: err.message });
       }
+    }
+
+    // ---------- Phase 5: Mark + agent requests ----------
+    if (path === '/api/admin/mark/run' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const body = await readJsonBody(req);
+      try {
+        if (body.topic) {
+          const r = await runMarkCustom(db, String(body.topic).slice(0, 400), { onBlock });
+          return sendJson(res, 200, { ok: true, version: r.version });
+        }
+        if (!MARK_DOC_TYPES.includes(body.type)) return sendJson(res, 400, { error: 'unknown market document' });
+        const r = await runMarkDocument(db, body.type, { onBlock });
+        return sendJson(res, 200, { ok: true, version: r.version });
+      } catch (err) {
+        if (err.code === 'SPEND_BLOCKED') return sendJson(res, 409, { error: 'spend ceiling reached; unblock first' });
+        logEvent(db, 'mark.run_error', { error: err.message });
+        return sendJson(res, 500, { error: err.message });
+      }
+    }
+    if (path === '/api/admin/mark/queue' && req.method === 'GET') {
+      if (!requireAdmin(req, res)) return;
+      return sendJson(res, 200, { queue: getQueue(db), directives: getDirectives(db) });
+    }
+    if (path === '/api/admin/mark/directives/remove' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const body = await readJsonBody(req);
+      removeDirective(db, Number(body.index));
+      return sendJson(res, 200, { ok: true, directives: getDirectives(db) });
+    }
+
+    if (path === '/api/admin/agent-requests' && req.method === 'GET') {
+      if (!requireAdmin(req, res)) return;
+      return sendJson(res, 200, {
+        requests: db.prepare('SELECT * FROM agent_requests ORDER BY id DESC LIMIT 50').all(),
+      });
+    }
+    // The admin can answer or cancel any queued request by hand (spec 7b).
+    if (path === '/api/admin/agent-requests/answer' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const body = await readJsonBody(req);
+      const row = db.prepare('SELECT * FROM agent_requests WHERE id = ?').get(Number(body.id));
+      if (!row || !['open', 'declined'].includes(row.status)) return sendJson(res, 404, { error: 'request not open' });
+      const answer = String(body.answer || '').trim();
+      if (!answer) return sendJson(res, 400, { error: 'answer required' });
+      const refs = JSON.parse(row.contextRefs);
+      const src = refs.length ? db.prepare('SELECT * FROM messages WHERE id = ?').get(refs[0]) : null;
+      const language = src?.language || 'en';
+      const memberName = src ? db.prepare('SELECT name FROM members WHERE id = ?').get(src.senderId)?.name : 'the member';
+      answerAgentRequest(db, row.id, answer, 'answered');
+      const relay = await generateRelay(db, { toAgent: row.toAgent, answer, language, memberName }, { onBlock });
+      if (relay) {
+        await postOttoMessage(relay, { language });
+        answerAgentRequest(db, row.id, answer, 'relayed');
+      }
+      return sendJson(res, 200, { ok: true });
+    }
+    if (path === '/api/admin/agent-requests/cancel' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const body = await readJsonBody(req);
+      db.prepare("UPDATE agent_requests SET status = 'declined', answeredAt = ? WHERE id = ? AND status = 'open'")
+        .run(new Date().toISOString(), Number(body.id));
+      return sendJson(res, 200, { ok: true });
     }
 
     // ---------- Agent controls (Phase 3) ----------
@@ -918,6 +1060,11 @@ setInterval(async () => {
 // Bob's clocks: nightly digest around 03:00 UTC, weekly deep synthesis.
 setInterval(() => {
   maybeRunBobSchedules(db, { onBlock }).catch(() => {});
+}, 60 * 60 * 1000);
+
+// Mark's clock: weekly research refresh, and queued topics between runs.
+setInterval(() => {
+  maybeRunMarkWeekly(db, { onBlock }).catch(() => {});
 }, 60 * 60 * 1000);
 
 // Otto's proactive interventions: checked every 5 minutes, gated by the daily

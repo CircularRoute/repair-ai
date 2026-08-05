@@ -107,6 +107,7 @@
         <div id="bob-chat" class="bob-chat"></div>
         <div class="row">
           <input id="bob-input" placeholder="Ask Bob anything about the corpus">
+          <button id="bob-mic" class="mic-btn" title="Record your question">&#127908;</button>
           <button id="bob-send">Ask</button>
         </div>
       </details>
@@ -125,10 +126,38 @@
       </details>
     </section>
 
-    <section class="card">
-      <details>
-        <summary class="card-summary"><h2>Mark</h2><span class="muted small">Phase 5</span></summary>
-        <p class="muted">Market research documents land here in Phase 5.</p>
+    <section class="card span2">
+      <details id="mark-details">
+        <summary class="card-summary"><h2>Mark</h2><span id="mark-mini" class="muted small"></span></summary>
+        <p class="muted small">Market research (web search, cited URLs). Chat with Mark about what he has
+          found; the four documents refresh weekly; "Research" sends him off to the web on a topic.</p>
+        <div id="mark-chat" class="bob-chat"></div>
+        <div class="row">
+          <input id="mark-input" placeholder="Ask Mark about his research">
+          <button id="mark-mic" class="mic-btn" title="Record your question">&#127908;</button>
+          <button id="mark-send">Ask</button>
+        </div>
+        <div class="row">
+          <input id="mark-topic" placeholder="Mark, research this on the web...">
+          <button id="mark-research">Research</button>
+        </div>
+        <div class="row">
+          <button class="ghost mark-run" data-type="market-landscape">Market landscape</button>
+          <button class="ghost mark-run" data-type="competitor-tracker">Competitor tracker</button>
+          <button class="ghost mark-run" data-type="targeting-icp">Targeting and ICP</button>
+          <button class="ghost mark-run" data-type="channel-opportunities">Channels</button>
+        </div>
+        <p id="mark-status" class="muted small"></p>
+        <div id="mark-queue" class="muted small"></div>
+      </details>
+    </section>
+
+    <section class="card span2">
+      <details id="requests-details">
+        <summary class="card-summary"><h2>Agent requests</h2><span id="requests-mini" class="muted small"></span></summary>
+        <p class="muted small">The check-with queue: questions Otto took to Mark or Bob. You can answer or
+          cancel any open one by hand; your answer gets relayed by Otto in the group.</p>
+        <div id="requests-list"></div>
       </details>
     </section>
 

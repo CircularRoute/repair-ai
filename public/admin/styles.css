@@ -167,6 +167,14 @@ details[open] .card-summary span { display: none; }
 .bob-msg.bob { align-self: flex-start; background: var(--bg); border: 1px solid var(--line); }
 .bob-msg.pending { opacity: 0.6; font-style: italic; }
 
+.mic-btn {
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 8px 12px; font-size: 1rem; flex: none;
+}
+.mic-btn.recording { color: #fff; background: var(--error); border-color: var(--error); animation: micpulse 1s infinite; }
+@keyframes micpulse { 50% { opacity: 0.6; } }
+
 .doc-view {
   margin-top: 10px; padding: 12px; background: var(--bg);
   border: 1px solid var(--line); border-radius: 10px;

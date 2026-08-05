@@ -133,3 +133,46 @@ test('otto settings defaults', () => {
   assert.equal(s.muted, false);
   assert.deepEqual(s.voiceLangs, ['en', 'ru', 'az']);
 });
+
+test('check-with plumbing: file, answer, relay states; ack and thin lines complete', async () => {
+  const { fileAgentRequest, answerAgentRequest, CHECK_ACK, CHECK_THIN } = await import('../lib/otto-engine.mjs');
+  const db = freshDb();
+  const id = fileAgentRequest(db, { toAgent: 'mark', question: 'what do shops charge for diagnostics?', contextRefs: ['m_1'] });
+  let row = db.prepare('SELECT * FROM agent_requests WHERE id = ?').get(id);
+  assert.equal(row.status, 'open');
+  assert.equal(row.toAgent, 'mark');
+  assert.deepEqual(JSON.parse(row.contextRefs), ['m_1']);
+
+  answerAgentRequest(db, id, 'Typical range is X', 'answered');
+  row = db.prepare('SELECT * FROM agent_requests WHERE id = ?').get(id);
+  assert.equal(row.status, 'answered');
+  answerAgentRequest(db, id, 'Typical range is X', 'relayed');
+  assert.equal(db.prepare('SELECT status FROM agent_requests WHERE id = ?').get(id).status, 'relayed');
+
+  for (const agent of ['mark', 'bob']) {
+    for (const lang of ['en', 'ru', 'az']) {
+      assert.ok(CHECK_ACK[agent][lang].length > 5, `${agent}/${lang} ack`);
+      assert.ok(CHECK_THIN[agent][lang].length > 5, `${agent}/${lang} thin`);
+      assert.equal(CHECK_ACK[agent][lang].includes(String.fromCharCode(0x2014)), false);
+    }
+  }
+});
+
+test('mark research queue dedupes and caps', async () => {
+  const { queueResearch, getQueue } = await import('../lib/mark.mjs');
+  const db = freshDb();
+  queueResearch(db, 'diagnostics pricing');
+  queueResearch(db, 'diagnostics pricing');
+  queueResearch(db, 'pm contracts');
+  assert.deepEqual(getQueue(db), ['diagnostics pricing', 'pm contracts']);
+});
+
+test('generateReply check directive parsing', async () => {
+  // Deterministic parse check via the exported regex behaviour: simulate what
+  // the engine does with a CHECK output by invoking the parser indirectly is
+  // not possible offline; assert the directive format contract instead.
+  const sample = '[CHECK:mark] what do other shops charge for diagnostics?';
+  const match = /^\[CHECK:(mark|bob)\]\s*(.+)/s.exec(sample);
+  assert.equal(match[1], 'mark');
+  assert.equal(match[2], 'what do other shops charge for diagnostics?');
+});

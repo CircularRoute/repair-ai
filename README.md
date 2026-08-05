@@ -70,4 +70,11 @@ npm test
   with citations; nightly digest and weekly deep synthesis schedules with the
   Fable toggle; event-triggered opportunity-register updates when a theme
   crosses five insights. Bob never posts in the group.
-- Next: Phase 5, Mark and the shared brain (web research, agent_requests).
+- Phase 5 (built): Mark and the shared brain. Web-search research (four market
+  documents plus on-demand notes, all URL-cited), Mark's intel indexed into
+  the shared retrieval space, real-time Mark-to-Bob incremental updates,
+  Otto's retrieval widened to the living documents, and the check-with
+  protocol end to end (agent_requests queue, admin oversight). Admin voice
+  questions and chats with both Bob and Mark, including research taskings and
+  standing instructions for Mark from the dashboard.
+- Remaining: Phase 6 (admin tool registry, OEM APIs) when the founder calls it.

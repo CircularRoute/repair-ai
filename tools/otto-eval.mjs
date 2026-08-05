@@ -52,19 +52,33 @@ async function judge(question, reply) {
 async function scenario(name, msgFields, checks) {
   const msg = seed(msgFields.senderId, msgFields.text, 0, msgFields.language || null);
   const row = { ...msg, language: msgFields.language || null };
-  let reply;
+  let result;
   try {
-    reply = await generateReply(db, row);
+    result = await generateReply(db, row);
   } catch (err) {
     verdict(name, false, `error: ${err.message}`);
     return;
   }
-  if (!reply) {
+  if (!result) {
     verdict(name, checks.allowSilent === true, 'Otto stayed silent');
     return;
   }
-  await checks.run(name, reply);
-  // Keep the transcriptless reply out of later scenarios' context noise.
+  if (result.kind === 'check') {
+    if (checks.expectCheck) {
+      verdict(name, result.toAgent === checks.expectCheck, `checked with ${result.toAgent}: ${result.question}`);
+    } else {
+      verdict(name, false, `unexpected check-with ${result.toAgent}: ${result.question}`);
+    }
+    db.prepare("UPDATE messages SET status = 'retired' WHERE id = ?").run(msg.id);
+    return;
+  }
+  if (checks.expectCheck) {
+    verdict(name, false, `expected check-with ${checks.expectCheck}, got a direct reply: ${result.text}`);
+    db.prepare("UPDATE messages SET status = 'retired' WHERE id = ?").run(msg.id);
+    return;
+  }
+  await checks.run(name, result.text);
+  // Keep the reply out of later scenarios' context noise.
   db.prepare("UPDATE messages SET status = 'retired' WHERE id = ?").run(msg.id);
 }
 
@@ -128,10 +142,17 @@ const scenarios = [
       verdict(name, !leaked, reply);
     },
   }),
+  () => scenario('market question routes to Mark (check-with)', {
+    senderId: 'p_e', language: 'en',
+    text: 'Otto, what do other repair shops usually charge for diagnostics?',
+  }, {
+    expectCheck: 'mark',
+    run: async () => {},
+  }),
   () => scenario('multi-member disambiguation by name', {
     senderId: 'p_e', language: 'ru',
     // Anar and admin also wrote within the last 20 minutes (seeded below).
-    text: 'Отто, а как другие мастера справляются с пропущенными звонками?',
+    text: 'Отто, у меня сегодня клиент опять отменил заказ, пока я был на другом ремонте.',
   }, {
     run: async (name, reply) => {
       verdict(name, /(Elvin|Эль?вин|Елвин)/i.test(reply), reply);
