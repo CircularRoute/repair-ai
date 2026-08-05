@@ -134,7 +134,7 @@ test('otto settings defaults', () => {
   assert.equal(s.proactivePerDay, 3);
   assert.equal(s.spacingHours, 3);
   assert.equal(s.resetMin, 60);
-  assert.equal(s.voice, 'verse'); // ruling 20: echo sounded robotic
+  assert.equal(s.voice, 'cedar'); // rulings 20-21: closest API voice to ChatGPT Cove
   assert.equal(s.muted, false);
   assert.deepEqual(s.voiceLangs, ['en', 'ru', 'az']);
 });

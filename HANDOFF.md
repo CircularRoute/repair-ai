@@ -45,7 +45,8 @@ this document is the source of truth for what exists.
   (show understanding first, question optional, never repeat questions, no
   name in one-on-one stretches), with Opus escalation for hard turns deep in
   an exchange (from reply 3 by default, Haiku-judged, admin-tunable toggle).
-  TTS voice per ruling 20: verse with natural-delivery style instructions.
+  TTS voice per rulings 20-21: cedar (closest API voice to ChatGPT's Cove)
+  with natural-delivery style instructions.
 - Phase 4: Bob. Five living documents (problem-map, opportunity-register,
   product-concepts incl. the Lead-to-Order Bridge, roadmap, build-specs) plus
   memo and digest, versioned with provenance in `documents`; real-time admin

@@ -189,3 +189,12 @@ the parent folder; no Render API keys.
     instructions (relaxed colleague leaving a voice note, natural pace,
     never announcer-like). Voice remains admin-selectable (verse, ballad,
     echo, onyx, ash); Bob=onyx and Mark=ash stay as ruled in the spec map.
+
+21. 2026-08-05 - Founder asked to switch Otto to the Cove voice. Cove is a
+    ChatGPT-app-only voice and does not exist in the OpenAI API (verified
+    against the API; supported: alloy, echo, fable, nova, shimmer, coral,
+    verse, ballad, ash, sage, marin, cedar). Ruled substitute: cedar, the
+    newest-generation voice closest to Cove's calm warm male character, now
+    Otto's voice and code default. cedar and marin added to the admin
+    selector; supersedes ruling 20's verse default, style instructions
+    unchanged.

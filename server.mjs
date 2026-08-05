@@ -1178,7 +1178,7 @@ const server = createServer(async (req, res) => {
         const v = Number(body[key]);
         if (body[key] !== undefined && Number.isFinite(v) && v >= min && v <= max) setSetting(db, key, v);
       }
-      if (typeof body.ottoVoice === 'string' && ['echo', 'onyx', 'ash', 'verse', 'ballad'].includes(body.ottoVoice)) {
+      if (typeof body.ottoVoice === 'string' && ['echo', 'onyx', 'ash', 'verse', 'ballad', 'cedar', 'marin'].includes(body.ottoVoice)) {
         setSetting(db, 'ottoVoice', body.ottoVoice);
       }
       logEvent(db, 'otto.settings_changed', null);
