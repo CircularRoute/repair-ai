@@ -33,6 +33,7 @@ import {
   CAP_LINES, CHECK_ACK, CHECK_THIN, ottoSettings, isEngagement, exchangeGate, recordOttoReply,
   canIntervene, recordIntervention, memberPrefersVoice, generateReply, generateIntervention,
   fileAgentRequest, answerAgentRequest, generateRelay,
+  ottoChat, ottoChatHistory, getOttoDirectives, removeOttoDirective,
 } from './lib/otto-engine.mjs';
 import { MARK_DOC_TYPES, runMarkDocument, runMarkCustom, runMarkAll, answerFromResearch, queueResearch, getQueue, maybeRunMarkWeekly, markChat, markChatHistory, getDirectives, removeDirective } from './lib/mark.mjs';
 import { transcribe } from './lib/voice.mjs';
@@ -827,6 +828,35 @@ const server = createServer(async (req, res) => {
         logEvent(db, 'bob.chat_error', { error: err.message });
         return sendJson(res, 500, { error: err.message });
       }
+    }
+
+    if (path === '/api/admin/otto-chat' && req.method === 'GET') {
+      if (!requireAdmin(req, res)) return;
+      return sendJson(res, 200, { messages: ottoChatHistory(db) });
+    }
+    if (path === '/api/admin/otto-chat' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const body = await readJsonBody(req);
+      const text = String(body.text || '').trim();
+      if (!text) return sendJson(res, 400, { error: 'empty message' });
+      try {
+        const reply = await ottoChat(db, text, { onBlock });
+        return sendJson(res, 200, { reply });
+      } catch (err) {
+        if (err.code === 'SPEND_BLOCKED') return sendJson(res, 409, { error: 'spend ceiling reached; unblock first' });
+        logEvent(db, 'otto.chat_error', { error: err.message });
+        return sendJson(res, 500, { error: err.message });
+      }
+    }
+    if (path === '/api/admin/otto/directives' && req.method === 'GET') {
+      if (!requireAdmin(req, res)) return;
+      return sendJson(res, 200, { directives: getOttoDirectives(db) });
+    }
+    if (path === '/api/admin/otto/directives/remove' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const body = await readJsonBody(req);
+      removeOttoDirective(db, Number(body.index));
+      return sendJson(res, 200, { ok: true, directives: getOttoDirectives(db) });
     }
 
     if (path === '/api/admin/bob/directives' && req.method === 'GET') {

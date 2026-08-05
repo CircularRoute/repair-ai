@@ -340,6 +340,28 @@ async function loadAgentChat(agent, boxId, emptyLine) {
   for (const m of data.messages) addChatMsg(boxId, m.role, m.content);
 }
 const loadBobChat = () => loadAgentChat('bob', 'bob-chat', 'Ask me anything about what the group has said so far, or teach me how you want me to work. I cite my sources.');
+const loadOttoChat = () => loadAgentChat('otto', 'otto-chat', 'Ask me what has been happening in the group, or tell me what to do differently there.');
+
+async function loadOttoDirectives() {
+  const data = await api('/api/admin/otto/directives');
+  const box = document.getElementById('otto-directives');
+  box.innerHTML = '';
+  if (!data.directives.length) return;
+  box.appendChild(el('div', null, 'Standing instructions:'));
+  data.directives.forEach((d, i) => {
+    const row = el('div', 'row');
+    row.appendChild(el('span', 'small', d));
+    const rm = el('button', 'ghost danger', 'Remove');
+    rm.addEventListener('click', async () => {
+      await api('/api/admin/otto/directives/remove', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ index: i }),
+      });
+      loadOttoDirectives();
+    });
+    row.appendChild(rm);
+    box.appendChild(row);
+  });
+}
 
 async function loadBobDirectives() {
   const data = await api('/api/admin/bob/directives');
@@ -377,13 +399,17 @@ async function sendToAgent(agent, inputId, boxId) {
   addChatMsg(boxId, 'bob', data.reply || data.error || 'Something went wrong.');
   if (agent === 'bob') loadBobDirectives();
   if (agent === 'mark') loadMarkQueue();
+  if (agent === 'otto') loadOttoDirectives();
 }
 const sendToBob = () => sendToAgent('bob', 'bob-input', 'bob-chat');
 const sendToMark = () => sendToAgent('mark', 'mark-input', 'mark-chat');
+const sendToOtto = () => sendToAgent('otto', 'otto-input', 'otto-chat');
 document.getElementById('bob-send').addEventListener('click', sendToBob);
 document.getElementById('bob-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendToBob(); });
 document.getElementById('mark-send').addEventListener('click', sendToMark);
 document.getElementById('mark-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendToMark(); });
+document.getElementById('otto-send').addEventListener('click', sendToOtto);
+document.getElementById('otto-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendToOtto(); });
 
 // Voice input: tap the mic to record, tap again to stop; the transcript goes
 // to onText.
@@ -423,6 +449,7 @@ function setupMic(btnId, onText) {
 }
 setupMic('bob-mic', (text) => { document.getElementById('bob-input').value = text; sendToBob(); });
 setupMic('mark-mic', (text) => { document.getElementById('mark-input').value = text; sendToMark(); });
+setupMic('otto-mic', (text) => { document.getElementById('otto-input').value = text; sendToOtto(); });
 // Spoken knowledge: transcribed and filed as a note in any language.
 setupMic('kn-mic', async (text) => {
   const title = `Voice note ${new Date().toLocaleString()}: ${text.slice(0, 60)}`;
@@ -741,7 +768,7 @@ async function init() {
   document.getElementById('whoami').textContent = meData.name;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/admin/sw.js');
   document.getElementById('corpus-details').addEventListener('toggle', loadCorpus);
-  await Promise.all([loadSpend(), loadMembers(), loadTaxonomy(), loadAgentSettings(), loadBobChat(), loadBobDirectives(), loadMarkChat(), loadDocs(), loadMarkQueue(), loadRequests()]);
+  await Promise.all([loadSpend(), loadMembers(), loadTaxonomy(), loadAgentSettings(), loadBobChat(), loadBobDirectives(), loadOttoChat(), loadOttoDirectives(), loadMarkChat(), loadDocs(), loadMarkQueue(), loadRequests()]);
   setInterval(loadSpend, 30000);
   setInterval(loadCorpus, 30000);
 }

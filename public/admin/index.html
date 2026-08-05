@@ -102,6 +102,21 @@
     </section>
 
     <section class="card span2">
+      <details id="otto-details">
+        <summary class="card-summary"><h2>Otto</h2><span class="muted small">group agent, teach him here</span></summary>
+        <p class="muted small">Talk to Otto privately: ask what has been happening in the group, or tell him
+          what to do differently in conversations. Instructions become standing rules until you remove them.</p>
+        <div id="otto-chat" class="bob-chat"></div>
+        <div id="otto-directives" class="muted small"></div>
+        <div class="row">
+          <input id="otto-input" placeholder="Ask Otto, or teach him how to behave in the group">
+          <button id="otto-mic" class="mic-btn" title="Record your instruction">&#127908;</button>
+          <button id="otto-send">Send</button>
+        </div>
+      </details>
+    </section>
+
+    <section class="card span2">
       <details id="bob-details" open>
         <summary class="card-summary"><h2>Bob</h2><span class="muted small">analysis and build agent</span></summary>
         <div id="bob-chat" class="bob-chat"></div>
