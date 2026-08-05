@@ -177,6 +177,18 @@ is a reasonable hardening step.
   ask Bob to list appliances; that closes Phase 6's DONE WHEN.
 - Remove the fx_rates demo tool in production when no longer wanted.
 
+## iOS voice-note interruption (live incident, guarded)
+
+Seen with real partners on day one: iOS silently stops delivering audio data
+when a call, Siri, or car Bluetooth takes the microphone mid-recording. The
+note keeps its duration metadata but is nearly empty (e.g. 145s at 28KB vs a
+healthy ~180kbps), plays as silence, and the transcriber hallucinates short
+English fragments from it, which Otto then quotes. Guards in the chat PWA: a
+live "No sound!" warning in the recording bar the moment the mic track mutes
+or ends, and a bytes-per-second sanity check on stop (<2000 B/s after 2s)
+that asks the member (EN/RU) before sending a soundless note. Not caused by
+model escalation or the pipeline; capture and playback code are fine.
+
 ## Known gaps and candidate next steps
 
 - OEM sandbox connection pending founder signup (above).

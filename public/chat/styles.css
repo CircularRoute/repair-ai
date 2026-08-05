@@ -56,6 +56,7 @@ body {
 .icon-btn.is-off {
   color: var(--error); border-color: var(--error); background: rgba(217, 106, 92, 0.14);
 }
+.rec-warn { color: var(--error); font-size: 0.78rem; font-weight: 700; flex: 1; }
 
 .push-banner {
   display: flex; flex-direction: column; gap: 8px;

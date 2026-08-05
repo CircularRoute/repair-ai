@@ -227,15 +227,36 @@ micBtn.addEventListener('click', async () => {
     recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
     recChunks = [];
     recWanted = false;
+    // iOS silently stops delivering audio when a call, Siri, or car Bluetooth
+    // takes the mic mid-recording (seen live: minutes-long notes with no
+    // sound). Surface it the moment it happens instead of after sending.
+    const recWarn = document.getElementById('rec-warn');
+    recWarn.hidden = true;
+    const track = stream.getAudioTracks()[0];
+    if (track) {
+      track.onmute = () => { recWarn.hidden = false; };
+      track.onunmute = () => { recWarn.hidden = true; };
+      track.onended = () => { recWarn.hidden = false; };
+    }
     recorder.ondataavailable = (e) => { if (e.data.size) recChunks.push(e.data); };
     recorder.onstop = async () => {
       stream.getTracks().forEach((t) => t.stop());
       const type = recorder.mimeType || 'audio/mp4';
       const blob = new Blob(recChunks, { type });
+      const seconds = recSeconds;
       recorder = null;
       recBar.hidden = true;
       clearInterval(recTimer);
       if (!recWanted || blob.size === 0) return;
+      // A real recording runs tens of KB per second; a few hundred bytes per
+      // second means the mic delivered no audio (interrupted session). Ask
+      // before sending a note nobody will be able to hear.
+      if (seconds > 2 && blob.size / seconds < 2000) {
+        const send = confirm(
+          'This recording seems to contain NO SOUND - the microphone was likely taken by a call, Siri, or car Bluetooth. Send it anyway?\n\n' +
+          'Похоже, запись БЕЗ ЗВУКА - микрофон, скорее всего, перехватил звонок, Siri или Bluetooth машины. Всё равно отправить?');
+        if (!send) return;
+      }
       const result = await uploadWithRetry('/api/chat/voice', { 'Content-Type': type }, blob);
       if (result.ok) {
         renderMessage(result.data.message);
