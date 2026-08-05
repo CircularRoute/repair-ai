@@ -249,6 +249,7 @@ async function init() {
   const res = await fetch('/api/me');
   if (!res.ok) { location.href = '/login'; return; }
   me = await res.json();
+  if (me.role === 'admin') document.getElementById('admin-link').hidden = false;
   await loadMessages();
   connectStream();
   setInterval(loadMessages, 15000);

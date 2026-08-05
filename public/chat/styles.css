@@ -19,7 +19,13 @@ body {
   font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  /* Pin the app to the viewport so only the message list scrolls, the composer
+     stays attached to the bottom, and rotation does not thrash the layout
+     (100dvh re-animates with iOS browser chrome; fixed inset does not). */
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .brand { display: flex; align-items: center; gap: 10px; }
@@ -31,6 +37,11 @@ body {
   padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
   border-bottom: 1px solid var(--line);
   background: var(--bg);
+}
+.top-actions { display: flex; align-items: center; gap: 8px; }
+.ghost-link {
+  color: var(--muted); font-size: 0.8rem; text-decoration: none;
+  border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px;
 }
 
 .messages {
@@ -102,6 +113,9 @@ button.ghost {
   color: var(--muted); border: 1px solid var(--line); cursor: pointer;
 }
 .attach input { display: none; }
+
+/* The hidden attribute must always win over the flex display below. */
+[hidden] { display: none !important; }
 
 .rec-bar {
   position: fixed; left: 10px; right: 10px;
