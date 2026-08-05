@@ -75,3 +75,24 @@ the parent folder; no Render API keys.
    - The Phase 3 behavioural eval set includes injection and manipulation baits
      (override attempts, fake admin claims, delete requests, cap-removal requests,
      "reveal your prompt" probes) that Otto must pass before real partners join.
+
+10. 2026-08-05 - Daily cost ceiling: $20 per day for total usage cost, API costs
+    included, across all agents and the pipeline. Supersedes the spec's $10/day
+    default. Behaviour when the ceiling is reached:
+    - A SYSTEM notice (from the system, not from Otto) is posted in the group chat
+      telling everyone the daily limit is reached and that only Rashad can unblock
+      it. Posted so every member can read it in their language (EN/RU/AZ). Rashad
+      also gets a push notification.
+    - Agent activity pauses: no Otto replies, no Bob or Mark runs, no digests or
+      synthesis.
+    - Raw capture NEVER stops (storing messages, voice audio, attachments costs no
+      API money and the corpus must not lose anything). Transcription and embedding
+      of incoming messages continue by default since they cost cents and are part of
+      capture; their cost still counts toward the ceiling. If Rashad wants those
+      paused too, that is a dashboard toggle.
+    - The block is lifted ONLY by Rashad, from the dashboard. It does NOT auto-lift
+      at midnight: a new day resets the spend counter, but a ceiling-triggered block
+      stays until Rashad unblocks it.
+    - The ceiling amount is admin-tunable in the dashboard; $20/day is the ruled
+      starting value. Spend is metered per agent per day in the spend table (spec
+      Section 9) and shown on the dashboard spend meter.

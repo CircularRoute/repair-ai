@@ -98,6 +98,11 @@ against this project's GITHUB REPO. Therefore:
     surfaced to the admin. Chat attachments are allowlisted to non-risky types,
     validated server-side, and never executed or rendered inline (decisions.md
     rulings 8 and 9 have the full lists and requirements).
+11. Daily cost ceiling (founder ruling 2026-08-05): $20/day total, API costs
+    included, supersedes the spec's $10 default. At the ceiling: a system notice in
+    the group chat says the limit is reached and only Rashad can unblock; agents
+    pause; raw capture never stops; the block lifts only from the dashboard, never
+    automatically (decisions.md ruling 10 has the full behaviour).
 
 ## Deployment
 
