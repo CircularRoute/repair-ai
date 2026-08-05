@@ -91,3 +91,40 @@ test('extraction output parsing is defensive', () => {
   assert.equal(parsed.insights.length, 1);
   assert.equal(parsed.proposals.length, 1);
 });
+
+test('tool registry: validation, env-name-only secrets, retire', async () => {
+  const { registerTool, listTools, retireTool } = await import('../lib/tools.mjs');
+  const db = openDb({ path: ':memory:' });
+  assert.throws(() => registerTool(db, { name: 'x', baseUrl: 'http://insecure', description: 'd' }), /https/);
+  assert.throws(() => registerTool(db, { name: 'x', baseUrl: 'https://api.example.com', description: 'd', authType: 'bearer', authEnvVar: 'lowercase' }), /ENV_VAR_NAME/);
+  const name = registerTool(db, { name: 'Home Connect!', baseUrl: 'https://api.example.com/', description: 'OEM sandbox', authType: 'bearer', authEnvVar: 'HC_TOKEN' });
+  assert.equal(name, 'home_connect_');
+  const tools = listTools(db);
+  assert.equal(tools.length, 1);
+  assert.equal(tools[0].baseUrl, 'https://api.example.com');
+  assert.equal(tools[0].hasKey, false, 'key not set in env');
+  retireTool(db, tools[0].id);
+  assert.equal(listTools(db).length, 0);
+  assert.equal(listTools(db, { includeRetired: true }).length, 1, 'retired, not deleted');
+});
+
+test('tool invocation guards: unknown tool, bad path, missing key', async () => {
+  const { registerTool, invokeTool } = await import('../lib/tools.mjs');
+  const db = openDb({ path: ':memory:' });
+  registerTool(db, { name: 'guarded', baseUrl: 'https://api.example.com', description: 'd', authType: 'bearer', authEnvVar: 'NOT_SET_VAR_XYZ' });
+  assert.equal((await invokeTool(db, 'nope', { path: '/' })).ok, false);
+  assert.equal((await invokeTool(db, 'guarded', { path: 'no-slash' })).ok, false);
+  assert.equal((await invokeTool(db, 'guarded', { path: '/../up' })).ok, false);
+  const missing = await invokeTool(db, 'guarded', { path: '/v1' });
+  assert.match(missing.error, /NOT_SET_VAR_XYZ/);
+});
+
+test('knowledge: html extraction and text file extraction', async () => {
+  const { htmlToText, extractTextFromFile } = await import('../lib/knowledge.mjs');
+  const text = htmlToText('<html><head><title>T</title><style>x{}</style></head><body><h1>Fault codes</h1><p>E15 &amp; E18</p><script>bad()</script></body></html>');
+  assert.equal(text.includes('Fault codes'), true);
+  assert.equal(text.includes('E15 & E18'), true);
+  assert.equal(text.includes('bad()'), false);
+  assert.equal(await extractTextFromFile('a.txt', Buffer.from('plain body')), 'plain body');
+  await assert.rejects(() => extractTextFromFile('a.docx', Buffer.from('x')), /cannot extract/);
+});

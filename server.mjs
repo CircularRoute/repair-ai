@@ -36,6 +36,8 @@ import {
 } from './lib/otto-engine.mjs';
 import { MARK_DOC_TYPES, runMarkDocument, runMarkCustom, answerFromResearch, queueResearch, getQueue, maybeRunMarkWeekly, markChat, markChatHistory, getDirectives, removeDirective } from './lib/mark.mjs';
 import { transcribe } from './lib/voice.mjs';
+import { listTools, registerTool, retireTool } from './lib/tools.mjs';
+import { addKnowledgeFile, addKnowledgeNote, addKnowledgeLink, listKnowledge, retireKnowledge } from './lib/knowledge.mjs';
 import { bobAnswerQuestion } from './lib/bob.mjs';
 import { tts } from './lib/voice.mjs';
 import {
@@ -961,6 +963,78 @@ const server = createServer(async (req, res) => {
       const body = await readJsonBody(req);
       db.prepare("UPDATE agent_requests SET status = 'declined', answeredAt = ? WHERE id = ? AND status = 'open'")
         .run(new Date().toISOString(), Number(body.id));
+      return sendJson(res, 200, { ok: true });
+    }
+
+    // ---------- Phase 6: tool registry ----------
+    if (path === '/api/admin/tools' && req.method === 'GET') {
+      if (!requireAdmin(req, res)) return;
+      return sendJson(res, 200, { tools: listTools(db) });
+    }
+    if (path === '/api/admin/tools' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const body = await readJsonBody(req);
+      try {
+        const name = registerTool(db, body);
+        return sendJson(res, 200, { ok: true, name });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+    if (path === '/api/admin/tools/remove' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const body = await readJsonBody(req);
+      retireTool(db, body.id);
+      return sendJson(res, 200, { ok: true });
+    }
+
+    // ---------- Phase 6: knowledge upload ----------
+    if (path === '/api/admin/knowledge' && req.method === 'GET') {
+      if (!requireAdmin(req, res)) return;
+      return sendJson(res, 200, { knowledge: listKnowledge(db) });
+    }
+    if (path === '/api/admin/knowledge/file' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const fileName = decodeURIComponent(req.headers['x-file-name'] || 'upload.txt');
+      let buf;
+      try {
+        buf = await readBody(req, MAX_FILE_BYTES);
+      } catch {
+        return sendJson(res, 413, { error: 'file too large' });
+      }
+      try {
+        const stored = storeFile(dataDir, 'knowledge', fileName.split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin', buf);
+        const result = await addKnowledgeFile(db, { title: fileName, path: stored.path, buf, fileName });
+        return sendJson(res, 200, { ok: true, ...result });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+    if (path === '/api/admin/knowledge/note' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const body = await readJsonBody(req);
+      if (!body.title || !body.text) return sendJson(res, 400, { error: 'title and text required' });
+      try {
+        const result = await addKnowledgeNote(db, { title: String(body.title).slice(0, 150), text: body.text });
+        return sendJson(res, 200, { ok: true, ...result });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+    if (path === '/api/admin/knowledge/link' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const body = await readJsonBody(req);
+      try {
+        const result = await addKnowledgeLink(db, { url: String(body.url || '').trim() });
+        return sendJson(res, 200, { ok: true, ...result });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+    if (path === '/api/admin/knowledge/remove' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const body = await readJsonBody(req);
+      retireKnowledge(db, body.id);
       return sendJson(res, 200, { ok: true });
     }
 

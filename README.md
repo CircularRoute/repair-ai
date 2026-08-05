@@ -77,4 +77,10 @@ npm test
   protocol end to end (agent_requests queue, admin oversight). Admin voice
   questions and chats with both Bob and Mark, including research taskings and
   standing instructions for Mark from the dashboard.
-- Remaining: Phase 6 (admin tool registry, OEM APIs) when the founder calls it.
+- Phase 6 (built): admin tool registry and vertical deepening. Registered
+  external APIs become live tools in Bob's chat (read-only GET, base-URL
+  pinned, secrets referenced by env var NAME only); knowledge upload (txt, md,
+  csv, pdf, pasted notes, https links) chunks into the shared corpus under
+  kn: ids. Formal DONE WHEN completes when the founder connects an OEM
+  sandbox (Home Connect / LG ThinQ developer signup) and registers it.
+All six phases of the spec are built. The launch gate (Phase 3+) is open.

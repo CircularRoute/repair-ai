@@ -153,6 +153,55 @@
     </section>
 
     <section class="card span2">
+      <details id="tools-details">
+        <summary class="card-summary"><h2>Tools</h2><span id="tools-mini" class="muted small"></span></summary>
+        <p class="muted small">External APIs Bob can call in chat (OEM sandboxes like Home Connect, LG ThinQ).
+          The secret key goes into the env file and Render's Environment tab under the name you give here;
+          this registry stores only the NAME of that variable, never the key.</p>
+        <div id="tools-list"></div>
+        <h3>Register a tool</h3>
+        <div class="row">
+          <input id="tool-name" placeholder="Name, e.g. home_connect">
+          <input id="tool-base" placeholder="Base URL, https://...">
+        </div>
+        <div class="row">
+          <input id="tool-desc" placeholder="What it is and when Bob should call it">
+        </div>
+        <div class="row">
+          <select id="tool-auth">
+            <option value="none">No auth</option>
+            <option value="bearer">Bearer token</option>
+            <option value="header">Header key</option>
+            <option value="query">Query param key</option>
+          </select>
+          <input id="tool-env" placeholder="ENV_VAR_NAME holding the key">
+          <input id="tool-param" placeholder="Header/param name (optional)">
+          <button id="tool-add">Register</button>
+        </div>
+        <p id="tool-status" class="small muted"></p>
+      </details>
+    </section>
+
+    <section class="card span2">
+      <details id="knowledge-details">
+        <summary class="card-summary"><h2>Knowledge</h2><span id="knowledge-mini" class="muted small"></span></summary>
+        <p class="muted small">Upload documents, paste notes, or add links; everything is chunked into the
+          corpus so Bob and Otto can use it. Supported files: txt, md, csv, pdf.</p>
+        <div id="knowledge-list"></div>
+        <div class="row">
+          <label class="attach-btn">Upload file<input id="kn-file" type="file" accept=".txt,.md,.csv,.pdf" hidden></label>
+          <input id="kn-link" placeholder="https:// link to ingest">
+          <button id="kn-link-add" class="ghost">Add link</button>
+        </div>
+        <div class="row">
+          <input id="kn-note-title" placeholder="Note title">
+          <button id="kn-note-add" class="ghost">Add note (opens editor)</button>
+        </div>
+        <p id="kn-status" class="small muted"></p>
+      </details>
+    </section>
+
+    <section class="card span2">
       <details id="requests-details">
         <summary class="card-summary"><h2>Agent requests</h2><span id="requests-mini" class="muted small"></span></summary>
         <p class="muted small">The check-with queue: questions Otto took to Mark or Bob. You can answer or

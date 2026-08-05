@@ -555,6 +555,105 @@ async function loadRequests() {
 }
 document.getElementById('requests-details').addEventListener('toggle', loadRequests);
 
+// --- Tools registry ---
+async function loadTools() {
+  const data = await api('/api/admin/tools');
+  document.getElementById('tools-mini').textContent = data.tools.length ? `${data.tools.length} registered` : 'none yet';
+  const list = document.getElementById('tools-list');
+  list.innerHTML = '';
+  if (!data.tools.length) list.appendChild(el('div', 'muted small', 'No tools registered yet.'));
+  for (const t of data.tools) {
+    const item = el('div', 'corpus-item');
+    const head = el('div', 'row');
+    head.appendChild(el('strong', null, t.name));
+    head.appendChild(el('span', 'muted small', `${t.baseUrl} · auth: ${t.authType}` +
+      (t.authEnvVar ? ` (${t.authEnvVar}${t.hasKey ? ', key present' : ', KEY MISSING on server'})` : '')));
+    const rm = el('button', 'ghost danger', 'Remove');
+    rm.addEventListener('click', async () => {
+      if (!confirm(`Remove tool ${t.name}?`)) return;
+      await api('/api/admin/tools/remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: t.id }) });
+      loadTools();
+    });
+    head.appendChild(rm);
+    item.appendChild(head);
+    item.appendChild(el('div', 'muted small', t.description));
+    list.appendChild(item);
+  }
+}
+document.getElementById('tool-add').addEventListener('click', async () => {
+  const payload = {
+    name: document.getElementById('tool-name').value,
+    baseUrl: document.getElementById('tool-base').value.trim(),
+    description: document.getElementById('tool-desc').value,
+    authType: document.getElementById('tool-auth').value,
+    authEnvVar: document.getElementById('tool-env').value.trim() || null,
+    authParamName: document.getElementById('tool-param').value.trim() || null,
+  };
+  const r = await api('/api/admin/tools', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  document.getElementById('tool-status').textContent = r.error || `Registered ${r.name}. Bob can call it in chat now.`;
+  if (!r.error) for (const id of ['tool-name', 'tool-base', 'tool-desc', 'tool-env', 'tool-param']) document.getElementById(id).value = '';
+  loadTools();
+});
+document.getElementById('tools-details').addEventListener('toggle', loadTools);
+
+// --- Knowledge ---
+async function loadKnowledge() {
+  const data = await api('/api/admin/knowledge');
+  document.getElementById('knowledge-mini').textContent = data.knowledge.length ? `${data.knowledge.length} items` : 'none yet';
+  const list = document.getElementById('knowledge-list');
+  list.innerHTML = '';
+  if (!data.knowledge.length) list.appendChild(el('div', 'muted small', 'Nothing uploaded yet.'));
+  for (const k of data.knowledge) {
+    const item = el('div', 'corpus-item');
+    const head = el('div', 'row');
+    head.appendChild(el('strong', null, k.title));
+    head.appendChild(el('span', 'muted small', `${k.kind} · ${new Date(k.addedAt).toLocaleDateString()}`));
+    const rm = el('button', 'ghost danger', 'Remove');
+    rm.addEventListener('click', async () => {
+      if (!confirm(`Remove "${k.title}" from the corpus?`)) return;
+      await api('/api/admin/knowledge/remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: k.id }) });
+      loadKnowledge();
+    });
+    head.appendChild(rm);
+    item.appendChild(head);
+    list.appendChild(item);
+  }
+}
+document.getElementById('kn-file').addEventListener('change', async () => {
+  const file = document.getElementById('kn-file').files[0];
+  document.getElementById('kn-file').value = '';
+  if (!file) return;
+  document.getElementById('kn-status').textContent = `Uploading and indexing ${file.name}...`;
+  const res = await fetch('/api/admin/knowledge/file', {
+    method: 'POST',
+    headers: { 'Content-Type': file.type || 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name) },
+    body: file,
+  });
+  const data = await res.json().catch(() => ({}));
+  document.getElementById('kn-status').textContent = data.error || `Indexed ${file.name} (${data.chunks} chunks).`;
+  loadKnowledge();
+});
+document.getElementById('kn-link-add').addEventListener('click', async () => {
+  const url = document.getElementById('kn-link').value.trim();
+  if (!url) return;
+  document.getElementById('kn-status').textContent = 'Fetching and indexing link...';
+  const r = await api('/api/admin/knowledge/link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
+  document.getElementById('kn-status').textContent = r.error || `Indexed "${r.title}" (${r.chunks} chunks).`;
+  document.getElementById('kn-link').value = '';
+  loadKnowledge();
+});
+document.getElementById('kn-note-add').addEventListener('click', async () => {
+  const title = document.getElementById('kn-note-title').value.trim();
+  if (!title) { alert('Give the note a title first.'); return; }
+  const text = window.prompt(`Note text for "${title}":`);
+  if (!text) return;
+  const r = await api('/api/admin/knowledge/note', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, text }) });
+  document.getElementById('kn-status').textContent = r.error || `Indexed note (${r.chunks} chunks).`;
+  document.getElementById('kn-note-title').value = '';
+  loadKnowledge();
+});
+document.getElementById('knowledge-details').addEventListener('toggle', loadKnowledge);
+
 // --- Agent controls ---
 async function loadAgentSettings() {
   const s = await api('/api/admin/agent-settings');
