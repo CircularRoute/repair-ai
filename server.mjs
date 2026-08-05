@@ -24,7 +24,7 @@ import {
   addSseClient, postAndBroadcast, messageView, makeCeilingBlockHandler, broadcast,
 } from './lib/chat.mjs';
 import { spendSummary, setCeiling, unblock, isBlocked } from './lib/spend.mjs';
-import { configurePush, vapidPublicKey, saveSubscription, notifyMembers } from './lib/push.mjs';
+import { configurePush, vapidPublicKey, saveSubscription, disableSubscription, notifyMembers } from './lib/push.mjs';
 import { OTTO_ID, onboardingMessage } from './lib/otto.mjs';
 import { embedTexts, rankChunks, blobToVector, cosine } from './lib/embeddings.mjs';
 import { runExtraction, maybeRunScheduled } from './lib/insights.mjs';
@@ -610,6 +610,15 @@ const server = createServer(async (req, res) => {
       if (!body.subscription?.endpoint) return sendJson(res, 400, { error: 'invalid subscription' });
       saveSubscription(db, session.memberId, body.subscription);
       return sendJson(res, 200, { ok: true });
+    }
+    if (path === '/api/push/unsubscribe' && req.method === 'POST') {
+      const session = requireMember(req, res);
+      if (!session) return;
+      const body = await readJsonBody(req);
+      if (!body.endpoint) return sendJson(res, 400, { error: 'invalid endpoint' });
+      const ok = disableSubscription(db, session.memberId, body.endpoint);
+      if (ok) logEvent(db, 'push.disabled', { memberId: session.memberId });
+      return sendJson(res, 200, { ok });
     }
 
     // ---------- Admin APIs ----------

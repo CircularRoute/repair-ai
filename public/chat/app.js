@@ -315,11 +315,16 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 // --- Push notifications ---
 // Notifications are a key feature (founder ruling): the banner stays visible
-// on every open until push is actually enabled on this device.
+// on every open until push is enabled OR the member deliberately turns it off
+// with the bell toggle (ruling 17). An explicit off is respected, not nagged.
+const PUSH_OFF_KEY = 'repairai.pushOff';
 async function setupPush() {
   const banner = document.getElementById('push-banner');
   const bannerText = document.getElementById('push-banner-text');
   const enableBtn = document.getElementById('push-enable');
+  const toggleBtn = document.getElementById('push-toggle');
+  const bellOn = document.getElementById('bell-on');
+  const bellOff = document.getElementById('bell-off');
   const ua = navigator.userAgent || '';
   const isIOS = /iPhone|iPad|iPod/.test(ua);
   // On iPhone every other browser (Chrome, the Google app, Firefox, Edge) is a
@@ -377,8 +382,18 @@ async function setupPush() {
     });
   }
 
-  async function refreshBanner() {
+  function setBell(state) {
+    // state: 'on' | 'off' | null (hidden, push not possible here)
+    toggleBtn.hidden = state === null;
+    bellOn.hidden = state !== 'on';
+    bellOff.hidden = state !== 'off';
+    toggleBtn.classList.toggle('is-off', state === 'off');
+    toggleBtn.setAttribute('aria-label', state === 'on' ? 'Turn off notifications' : 'Turn on notifications');
+  }
+
+  async function refreshUi() {
     if (!supported) {
+      setBell(null);
       if (isIOS && !standalone) {
         bannerText.textContent =
           'Notifications need the installed app: tap Share, then Add to Home Screen, and open Repair AI from your home screen.';
@@ -389,9 +404,17 @@ async function setupPush() {
       }
       return;
     }
+    const optedOut = localStorage.getItem(PUSH_OFF_KEY) === '1';
     const sub = await reg.pushManager.getSubscription();
-    if (sub && Notification.permission === 'granted') {
+    if (sub && Notification.permission === 'granted' && !optedOut) {
       await syncSubscription(sub);
+      setBell('on');
+      banner.hidden = true;
+      return;
+    }
+    setBell('off');
+    if (optedOut) {
+      // A deliberate choice: no nagging, the bell is the way back in.
       banner.hidden = true;
       return;
     }
@@ -408,7 +431,7 @@ async function setupPush() {
     banner.hidden = false;
   }
 
-  enableBtn.addEventListener('click', async () => {
+  async function enablePush() {
     try {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
@@ -417,12 +440,45 @@ async function setupPush() {
           applicationServerKey: urlBase64ToUint8Array(key),
         });
         await syncSubscription(sub);
+        localStorage.removeItem(PUSH_OFF_KEY);
       }
     } catch {}
-    refreshBanner();
+    refreshUi();
+  }
+
+  async function disablePush() {
+    try {
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        await fetch('/api/push/unsubscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint: sub.endpoint }),
+        });
+        await sub.unsubscribe();
+      }
+    } catch {}
+    localStorage.setItem(PUSH_OFF_KEY, '1');
+    refreshUi();
+  }
+
+  enableBtn.addEventListener('click', enablePush);
+  toggleBtn.addEventListener('click', async () => {
+    const sub = await reg.pushManager.getSubscription().catch(() => null);
+    const isOn = sub && Notification.permission === 'granted' && localStorage.getItem(PUSH_OFF_KEY) !== '1';
+    if (isOn) {
+      if (confirm('Turn off notifications on this phone? You will not know when the group is talking.')) {
+        await disablePush();
+      }
+    } else if (Notification.permission === 'denied') {
+      localStorage.removeItem(PUSH_OFF_KEY);
+      await refreshUi();
+    } else {
+      await enablePush();
+    }
   });
 
-  await refreshBanner();
+  await refreshUi();
 }
 
 function urlBase64ToUint8Array(base64String) {

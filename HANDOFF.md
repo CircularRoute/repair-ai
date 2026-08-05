@@ -72,7 +72,10 @@ this document is the source of truth for what exists.
   message (long-press or tap-for-Delete-chip; admin can delete any; redaction
   per ruling 12, content retained for admin, excluded from agents), voice
   bubbles show player only (Otto voice notes always carry text), persistent
-  enable-notifications banner until push is on.
+  enable-notifications banner until push is on OR the member turns it off
+  with the header bell toggle (ruling 17: off is per device, confirmed,
+  retires the subscription server-side, and silences the banner; the bell
+  turns it back on).
 - Teaching from the dashboard (the founder's most-valued surface): all three
   agents have private admin chats (text + microphone, any language).
   [DIRECTIVE] outputs become standing instructions stored in settings

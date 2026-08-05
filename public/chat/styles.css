@@ -48,6 +48,8 @@ body {
   border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px;
 }
 .as-button { background: transparent; cursor: pointer; font-family: inherit; }
+.icon-btn { display: flex; align-items: center; padding: 6px 8px; }
+.icon-btn.is-off { color: #b2564f; border-color: #4a2a28; }
 
 .push-banner {
   display: flex; flex-direction: column; gap: 8px;

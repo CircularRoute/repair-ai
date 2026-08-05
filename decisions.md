@@ -151,3 +151,13 @@ the parent folder; no Render API keys.
     directives, event logs. The never-delete rule (hard rule 4) governs REAL
     partner data from launch onward and is unchanged. Executed via an
     admin-only endpoint requiring an explicit confirmation phrase.
+
+17. 2026-08-05 - Notifications are user-controllable: members can turn push
+    notifications on AND off themselves, with a bell toggle in the chat
+    header (in case notifications are too much for someone). Turning off is
+    per device, asks for confirmation, retires the push subscription
+    server-side (status 'disabled', never deleted), and STOPS the persistent
+    enable-notifications banner: a deliberate off is respected, not nagged.
+    The banner still nags users who simply have not enabled push yet. The
+    bell is the way back in; re-enabling reactivates the same subscription
+    row. Members can only disable their own subscriptions.

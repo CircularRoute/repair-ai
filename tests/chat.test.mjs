@@ -126,3 +126,27 @@ test('welcome email templates exist per language, name the founder, carry the UR
     assert.equal(captured.text.includes(String.fromCharCode(0x2014)), false, language);
   }
 });
+
+test('push toggle: disable retires own subscription, re-subscribe reactivates, others untouched', async () => {
+  const { saveSubscription, disableSubscription } = await import('../lib/push.mjs');
+  const db = freshDb();
+  for (const id of ['p_a', 'p_b']) {
+    db.prepare("INSERT INTO members (id, name, role, language, joinedAt) VALUES (?, ?, 'partner', 'en', ?)")
+      .run(id, id, new Date().toISOString());
+  }
+  saveSubscription(db, 'p_a', { endpoint: 'https://push.example/a', keys: {} });
+  saveSubscription(db, 'p_b', { endpoint: 'https://push.example/b', keys: {} });
+
+  // A member can only retire their OWN endpoint.
+  assert.equal(disableSubscription(db, 'p_b', 'https://push.example/a'), false);
+  assert.equal(disableSubscription(db, 'p_a', 'https://push.example/a'), true);
+
+  const status = (ep) =>
+    db.prepare('SELECT status FROM push_subscriptions WHERE endpoint = ?').get(ep).status;
+  assert.equal(status('https://push.example/a'), 'disabled');
+  assert.equal(status('https://push.example/b'), 'active');
+
+  // Retired, not deleted; turning notifications back on reactivates the row.
+  saveSubscription(db, 'p_a', { endpoint: 'https://push.example/a', keys: {} });
+  assert.equal(status('https://push.example/a'), 'active');
+});
