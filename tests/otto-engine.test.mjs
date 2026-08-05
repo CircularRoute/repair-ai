@@ -24,22 +24,31 @@ test('cap lines are exact in all three languages and name Rashad', () => {
   }
 });
 
-test('engagement: mention, reply-to-otto, live exchange continuation', () => {
+test('engagement (ruling 14): mention, explicit reply, or first message after Otto only', () => {
   const db = freshDb();
-  const t = new Date();
-  assert.equal(isEngagement(db, { senderId: 'p_e', originalText: 'Otto, what do you think?' }, t), true);
-  assert.equal(isEngagement(db, { senderId: 'p_e', originalText: 'Отто, привет' }, t), true);
-  assert.equal(isEngagement(db, { senderId: 'p_e', originalText: 'just chatting with friends' }, t), false);
+  const base = Date.now();
+  const at = (min) => new Date(base + min * 60 * 1000).toISOString();
 
-  const ottoMsg = insertMessage(db, { senderId: OTTO_ID, senderKind: 'agent', kind: 'text', originalText: 'q?', pipelineStatus: 'done' });
-  assert.equal(isEngagement(db, { senderId: 'p_e', originalText: 'answer', replyToId: ottoMsg.id }, t), true);
+  // Mentions engage regardless of position; plain chat does not.
+  insertMessage(db, { senderId: 'admin', senderKind: 'member', kind: 'text', originalText: 'morning all', ts: at(0) });
+  assert.equal(isEngagement(db, { id: 'x1', ts: at(1), senderId: 'p_e', originalText: 'Otto, what do you think?' }), true);
+  assert.equal(isEngagement(db, { id: 'x2', ts: at(1), senderId: 'p_e', originalText: 'Отто, привет' }), true);
+  assert.equal(isEngagement(db, { id: 'x3', ts: at(1), senderId: 'p_e', originalText: 'just chatting with friends' }), false);
 
-  // Continuation: Otto replied to this member 5 minutes ago.
-  exchangeGate(db, 'p_e', t);
-  recordOttoReply(db, 'p_e', {}, new Date(t.getTime() - 5 * 60 * 1000));
-  assert.equal(isEngagement(db, { senderId: 'p_e', originalText: 'plain follow up' }, t), true);
-  // A different member's plain message is not a continuation.
-  assert.equal(isEngagement(db, { senderId: 'admin', originalText: 'plain message' }, t), false);
+  // Otto speaks; the very next message engages, whoever sends it.
+  const ottoMsg = insertMessage(db, { senderId: OTTO_ID, senderKind: 'agent', kind: 'text', originalText: 'q?', pipelineStatus: 'done', ts: at(2) });
+  const first = insertMessage(db, { senderId: 'p_e', senderKind: 'member', kind: 'text', originalText: 'my answer', ts: at(3) });
+  assert.equal(isEngagement(db, first), true);
+
+  // The message after that first reply is member-to-member, even minutes later.
+  const second = insertMessage(db, { senderId: 'admin', senderKind: 'member', kind: 'text', originalText: 'I agree with Elvin', ts: at(4) });
+  assert.equal(isEngagement(db, second), false);
+  // Same member continuing without a mention is also not engagement now.
+  const third = insertMessage(db, { senderId: 'p_e', senderKind: 'member', kind: 'text', originalText: 'and one more thing', ts: at(5) });
+  assert.equal(isEngagement(db, third), false);
+
+  // Explicit reply-to-Otto still engages from anywhere.
+  assert.equal(isEngagement(db, { id: 'x4', ts: at(6), senderId: 'admin', originalText: 'late answer', replyToId: ottoMsg.id }), true);
 });
 
 test('conversation cap: 4 replies, then the verbatim line, then silence, then reset', () => {

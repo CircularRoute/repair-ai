@@ -125,3 +125,10 @@ the parent folder; no Render API keys.
     in). Nothing else is ever emailed. Invite links remain as
     a secondary path. Replaces the fragile single-use-link-only flow that broke
     when a member installed the PWA from the join page.
+
+14. 2026-08-05 - Otto engagement rule: Otto treats a message as addressed to him
+    ONLY when (a) it mentions Otto by name in text or voice, or (b) it is the
+    very first message following an Otto message (an immediate reply). Any later
+    message in the window, including replies between members after someone
+    answered Otto, is member-to-member conversation: captured, never replied to.
+    This supersedes the earlier 15-minute same-member continuation rule.
