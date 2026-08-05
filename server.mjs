@@ -424,8 +424,11 @@ const server = createServer(async (req, res) => {
       const session = requireMember(req, res);
       if (!session) return;
       const mime = (req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
-      const ext = mime.includes('webm') ? 'webm' : mime.includes('ogg') ? 'ogg' : mime.includes('mp4') || mime.includes('m4a') || mime.includes('aac') ? 'm4a' : mime.includes('wav') ? 'wav' : mime.includes('mpeg') ? 'mp3' : null;
-      if (!ext) return sendJson(res, 400, { error: 'unsupported audio type' });
+      const ext = mime.includes('webm') ? 'webm' : mime.includes('ogg') ? 'ogg' : mime.includes('mp4') || mime.includes('m4a') || mime.includes('aac') || mime.includes('3gpp') ? 'm4a' : mime.includes('wav') ? 'wav' : mime.includes('mpeg') || mime.includes('mp3') ? 'mp3' : null;
+      if (!ext) {
+        logEvent(db, 'voice.rejected', { memberId: session.memberId, mime, reason: 'unsupported type' });
+        return sendJson(res, 400, { error: `unsupported audio type (${mime || 'none'})` });
+      }
       let buf;
       try {
         buf = await readBody(req, MAX_AUDIO_BYTES);

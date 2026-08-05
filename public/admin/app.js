@@ -126,6 +126,8 @@ document.getElementById('invite-create').addEventListener('click', async () => {
 
 // --- Corpus browser ---
 async function loadCorpus() {
+  // Collapsed by default; load only when the admin expands it.
+  if (!document.getElementById('corpus-details').open) return;
   const data = await api('/api/admin/messages');
   const box = document.getElementById('corpus');
   box.innerHTML = '';
@@ -186,7 +188,8 @@ async function init() {
   const meData = await res.json();
   document.getElementById('whoami').textContent = meData.name;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/admin/sw.js');
-  await Promise.all([loadSpend(), loadMembers(), loadCorpus()]);
+  document.getElementById('corpus-details').addEventListener('toggle', loadCorpus);
+  await Promise.all([loadSpend(), loadMembers()]);
   setInterval(loadSpend, 30000);
   setInterval(loadCorpus, 30000);
 }

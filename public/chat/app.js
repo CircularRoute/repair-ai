@@ -187,18 +187,17 @@ micBtn.addEventListener('click', async () => {
     recorder.ondataavailable = (e) => { if (e.data.size) recChunks.push(e.data); };
     recorder.onstop = async () => {
       stream.getTracks().forEach((t) => t.stop());
-      const type = recorder.mimeType || 'audio/webm';
+      const type = recorder.mimeType || 'audio/mp4';
       const blob = new Blob(recChunks, { type });
       recorder = null;
       recBar.hidden = true;
       clearInterval(recTimer);
       if (!recWanted || blob.size === 0) return;
-      const res = await fetch('/api/chat/voice', { method: 'POST', headers: { 'Content-Type': type }, body: blob });
-      if (res.ok) {
-        const data = await res.json();
-        renderMessage(data.message);
+      const result = await uploadWithRetry('/api/chat/voice', { 'Content-Type': type }, blob);
+      if (result.ok) {
+        renderMessage(result.data.message);
       } else {
-        alert('Could not send the voice note.');
+        alert('Could not send the voice note: ' + result.reason + '. Please try again.');
       }
     };
     recorder.start();
@@ -223,26 +222,42 @@ function stopRecording(send) {
 document.getElementById('rec-send').addEventListener('click', () => stopRecording(true));
 document.getElementById('rec-cancel').addEventListener('click', () => stopRecording(false));
 
+// Upload helper: retries once on server hiccups (deploy restarts, network
+// blips) and reports the real reason on failure.
+async function uploadWithRetry(url, headers, body) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    let res = null;
+    try {
+      res = await fetch(url, { method: 'POST', headers, body });
+    } catch {
+      if (attempt === 0) { await new Promise((r) => setTimeout(r, 2000)); continue; }
+      return { ok: false, reason: 'no connection' };
+    }
+    if (res.ok) return { ok: true, data: await res.json() };
+    if (res.status >= 500 && attempt === 0) {
+      await new Promise((r) => setTimeout(r, 2000));
+      continue;
+    }
+    const data = await res.json().catch(() => ({}));
+    return { ok: false, reason: data.error || `server error ${res.status}` };
+  }
+  return { ok: false, reason: 'server unavailable' };
+}
+
 // --- Attachments ---
 fileInput.addEventListener('change', async () => {
   const file = fileInput.files[0];
   fileInput.value = '';
   if (!file) return;
   if (file.size > 25 * 1024 * 1024) { alert('Files up to 25 MB.'); return; }
-  const res = await fetch('/api/chat/file', {
-    method: 'POST',
-    headers: {
-      'Content-Type': file.type || 'application/octet-stream',
-      'X-File-Name': encodeURIComponent(file.name),
-    },
-    body: file,
-  });
-  if (res.ok) {
-    const data = await res.json();
-    renderMessage(data.message);
+  const result = await uploadWithRetry('/api/chat/file', {
+    'Content-Type': file.type || 'application/octet-stream',
+    'X-File-Name': encodeURIComponent(file.name),
+  }, file);
+  if (result.ok) {
+    renderMessage(result.data.message);
   } else {
-    const data = await res.json().catch(() => ({}));
-    alert(data.error || 'This file type is not allowed.');
+    alert(result.reason);
   }
 });
 

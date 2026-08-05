@@ -148,6 +148,15 @@ select {
 button.danger { color: var(--error); border-color: var(--error); }
 .card h3 { font-size: 0.9rem; margin-top: 6px; color: var(--muted); }
 
+.card-summary {
+  display: flex; align-items: baseline; gap: 10px; cursor: pointer;
+  list-style: none;
+}
+.card-summary::before { content: '\25B8'; color: var(--muted); }
+details[open] .card-summary::before { content: '\25BE'; }
+details[open] .card-summary span { display: none; }
+.card-summary h2 { display: inline; }
+
 .corpus-item {
   border-top: 1px solid var(--line);
   padding: 10px 0;
