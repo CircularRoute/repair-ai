@@ -1,7 +1,7 @@
 # HANDOFF - Repair AI, state of the build
 
-Updated 2026-08-05, end of the build day that took the project from an empty
-folder to the complete design-partner system. Read `CLAUDE.md` first, then this,
+Updated 2026-08-05 (post test-data wipe), end of the build day that took the
+project from an empty folder to the complete design-partner system. Read `CLAUDE.md` first, then this,
 then `decisions.md` for every founder ruling. The spec
 (`repair_ai_project_spec_20260805.md`) remains the source of truth for intent;
 this document is the source of truth for what exists.
@@ -130,11 +130,27 @@ this document is the source of truth for what exists.
   matching, digging style, solution bait, fake-admin/deletion/cap-removal
   baits, prompt disclosure, check-with routing, name disambiguation.
 
+## Production data state (as of the wipe, ruling 16)
+
+All test-period data was hard-deleted on the founder's command on 2026-08-05:
+every test message (including the founder's and test member Elvin's), derived
+tags/chunks/insights/documents, all test members and their access, agent
+chats, and stored test media. Production now holds ONLY: the admin account
+(Rashad) with live sessions, the four Knowledge PDFs and their kn: index,
+spend history, settings, and event logs. The corpus, insights, and living
+documents start empty and will build from real partner conversation. The wipe
+endpoint (POST /api/admin/reset-test-data, admin-only, exact confirmation
+phrase "DELETE ALL TEST DATA") still exists; NEVER run it after real partners
+join - hard rule 4 governs partner data, and removing this endpoint at launch
+is a reasonable hardening step.
+
 ## Operational runbook
 
 - Invite a partner: Members > name + email + languages > Add member. They get
   the invitation email, sign in with a code at otto.repairnow.app, Otto
   onboards them with the consent line. LAUNCH GATE is open (Phase 3 passed).
+- If push notifications were enabled while signed in as a deleted test member,
+  re-enable them once from the chat banner on the admin account.
 - Ceiling tripped: Spend meter section force-opens with the Unblock button;
   it never lifts itself (ruling 10).
 - AZ voice quality gate: after a native listener judges Otto's AZ TTS, untick
@@ -150,5 +166,7 @@ this document is the source of truth for what exists.
 - OEM sandbox connection pending founder signup (above).
 - docx knowledge extraction not supported (txt/md/csv/pdf are).
 - Chat has no reply-to UI (server supports replyToId; engagement uses it).
-- Member list in prod still holds early test members; founder can Remove them.
+- Consider removing the reset-test-data endpoint at launch (see above).
 - If the group grows past ~100k chunks, move retrieval to pgvector (spec note).
+- The reusable pattern from this build is captured as the user-level skill
+  `design-partner` (~/.claude/skills/design-partner/) for future projects.
