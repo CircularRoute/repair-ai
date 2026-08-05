@@ -1,0 +1,27 @@
+# Render blueprint. The founder creates the service BY HAND in the Render dashboard
+# (New > Blueprint, pointed at this repo). No Render API keys exist or are wanted.
+# Secrets (sync: false) are entered by the founder in the service's Environment tab.
+services:
+  - type: web
+    name: repair-ai
+    runtime: node
+    plan: starter
+    buildCommand: npm ci
+    startCommand: node server.mjs
+    autoDeploy: true
+    healthCheckPath: /healthz
+    disk:
+      name: repair-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /data
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: REPAIR_ADMIN_TOKEN
+        sync: false

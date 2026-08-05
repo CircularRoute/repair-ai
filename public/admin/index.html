@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101418">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Repair AI - Admin</title>
+  <link rel="manifest" href="/admin/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="/admin/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <h1>Repair AI</h1>
+    </div>
+    <div class="topbar-right">
+      <span id="whoami" class="muted"></span>
+      <button id="logout" class="ghost">Sign out</button>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="card span2">
+      <h2>Bob</h2>
+      <p class="muted">Real-time chat with Bob lands here in Phase 4. Bob answers from
+      the live corpus with citations and can re-run any living document on demand.</p>
+      <div class="placeholder">Phase 4</div>
+    </section>
+
+    <section class="card">
+      <h2>Living documents</h2>
+      <p class="muted">Problem Map, Opportunity Register, Product Concepts, Roadmap,
+      Build Specs. Versioned, provenance-linked.</p>
+      <div class="placeholder">Phase 4</div>
+    </section>
+
+    <section class="card">
+      <h2>Corpus browser</h2>
+      <p class="muted">Search, transcripts next to audio, AZ corrections, re-tagging.</p>
+      <div class="placeholder">Phase 1-2</div>
+    </section>
+
+    <section class="card">
+      <h2>Members</h2>
+      <p class="muted">Invite links, join status, language preference.</p>
+      <div class="placeholder">Phase 1</div>
+    </section>
+
+    <section class="card">
+      <h2>Agent controls</h2>
+      <p class="muted">Otto budget and caps, voice per language, Bob model tier and
+      schedules, Mark requests.</p>
+      <div class="placeholder">Phase 3-5</div>
+    </section>
+
+    <section class="card">
+      <h2>Mark</h2>
+      <p class="muted">Market landscape, competitor tracker, targeting and ICP,
+      channel opportunities.</p>
+      <div class="placeholder">Phase 5</div>
+    </section>
+
+    <section class="card">
+      <h2>Spend meter</h2>
+      <p class="muted">API cost today and this week, per agent, with the daily
+      ceiling and graceful degradation.</p>
+      <div class="placeholder">Phase 1</div>
+    </section>
+
+    <section class="card span2">
+      <h2>Status</h2>
+      <p id="status" class="muted">Phase 0 shell online. Service healthy, database
+      initialized, auth working. Next: Phase 1, the chat PWA and capture pipeline.</p>
+    </section>
+  </main>
+
+  <script src="/admin/app.js"></script>
+</body>
+</html>

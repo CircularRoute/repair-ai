@@ -1,0 +1,20 @@
+{
+  "name": "repair-ai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Repair AI design-partner intelligence system: group chat PWA, capture pipeline, and the Otto/Bob/Mark agents. One service, SQLite, Render.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.2.0"
+  },
+  "allowScripts": {
+    "better-sqlite3@12.11.1": true
+  }
+}
