@@ -566,6 +566,27 @@ const server = createServer(async (req, res) => {
       }
       if (!buf.length) return sendJson(res, 400, { error: 'empty audio' });
       const stored = storeFile(dataDir, 'audio', ext, buf);
+      // Silent-recording guard (ruling 25): iOS delivers near-empty audio when
+      // another app takes the mic mid-recording. The client reports the
+      // recording length; a byte rate this low cannot contain speech. Store
+      // the note (capture never loses anything) but never transcribe it -
+      // transcription models hallucinate text from silence - and have Otto
+      // explain the real cause instead of guessing at words nobody said.
+      const recSeconds = Number(req.headers['x-rec-seconds'] || 0);
+      const silent = recSeconds > 2 && buf.length / recSeconds < 2000;
+      if (silent) {
+        const msg = postAndBroadcast(db, {
+          senderId: session.memberId, senderKind: 'member', kind: 'voice',
+          audioPath: stored.path, pipelineStatus: 'silent', transcript: null,
+        });
+        logEvent(db, 'voice.silent', { memberId: session.memberId, bytes: buf.length, seconds: recSeconds });
+        postOttoMessage(
+          'I could not hear that voice note: no sound reached me, because the microphone was being used by ' +
+          'another program on your phone (a call, Siri, CarPlay, or car Bluetooth). Free up the mic and send it again, please.',
+          { language: 'en', memberIdFor: session.memberId, replyToKind: 'voice' }
+        ).catch((err) => logEvent(db, 'otto.error', { error: err.message }));
+        return sendJson(res, 200, { ok: true, message: messageView(db, msg) });
+      }
       const msg = postMemberMessage(session, { kind: 'voice', audioPath: stored.path });
       return sendJson(res, 200, { ok: true, message: messageView(db, msg) });
     }

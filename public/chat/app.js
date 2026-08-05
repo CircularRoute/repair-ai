@@ -249,15 +249,15 @@ micBtn.addEventListener('click', async () => {
       clearInterval(recTimer);
       if (!recWanted || blob.size === 0) return;
       // A real recording runs tens of KB per second; a few hundred bytes per
-      // second means the mic delivered no audio (interrupted session). Ask
+      // second means the mic delivered no audio (interrupted session). Warn
       // before sending a note nobody will be able to hear.
       if (seconds > 2 && blob.size / seconds < 2000) {
         const send = confirm(
-          'This recording seems to contain NO SOUND - the microphone was likely taken by a call, Siri, or car Bluetooth. Send it anyway?\n\n' +
-          'Похоже, запись БЕЗ ЗВУКА - микрофон, скорее всего, перехватил звонок, Siri или Bluetooth машины. Всё равно отправить?');
+          'No sound was recorded, because the microphone is used by another program on your phone ' +
+          '(Siri, CarPlay, car Bluetooth, a call, etc). Free up the microphone and record again. Send anyway?');
         if (!send) return;
       }
-      const result = await uploadWithRetry('/api/chat/voice', { 'Content-Type': type }, blob);
+      const result = await uploadWithRetry('/api/chat/voice', { 'Content-Type': type, 'X-Rec-Seconds': String(seconds) }, blob);
       if (result.ok) {
         renderMessage(result.data.message);
       } else {

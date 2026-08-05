@@ -186,11 +186,14 @@ Seen with real partners on day one: iOS silently stops delivering audio data
 when a call, Siri, or car Bluetooth takes the microphone mid-recording. The
 note keeps its duration metadata but is nearly empty (e.g. 145s at 28KB vs a
 healthy ~180kbps), plays as silence, and the transcriber hallucinates short
-English fragments from it, which Otto then quotes. Guards in the chat PWA: a
-live "No sound!" warning in the recording bar the moment the mic track mutes
-or ends, and a bytes-per-second sanity check on stop (<2000 B/s after 2s)
-that asks the member (EN/RU) before sending a soundless note. Not caused by
-model escalation or the pipeline; capture and playback code are fine.
+English fragments from it. Guards (ruling 25): live "No sound" warning in
+the recording bar on mic mute/end; pre-send confirm (plain English) when the
+byte rate cannot contain speech; the client sends X-Rec-Seconds and the
+server marks such notes pipelineStatus='silent', never transcribes them
+(hallucination cannot happen), and Otto immediately explains the mic cause
+and asks to resend; Otto's prompt additionally forbids quoting or guessing
+at noise/fragment transcripts. Not caused by model escalation or the
+pipeline; capture and playback code are fine.
 
 ## Known gaps and candidate next steps
 

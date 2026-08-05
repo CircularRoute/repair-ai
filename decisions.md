@@ -241,3 +241,16 @@ the parent folder; no Render API keys.
     admin always/never override, then the member's explicit hour-long
     wish, then modality mirroring (ruling 23), then the voice-heavy
     heuristic for proactive messages.
+
+25. 2026-08-05 - No hallucination on silent or broken voice notes, and the
+    cause is explained in plain words: "no sound, because the microphone is
+    used by another program on your phone (Siri, CarPlay, car Bluetooth,
+    etc)." Enforced in three layers: (a) the client sends the recording
+    length with each upload; the server detects a byte rate too low to
+    contain speech, stores the note (capture keeps everything) but NEVER
+    transcribes it - transcription models hallucinate words from silence -
+    and Otto immediately explains the mic cause and asks to resend;
+    (b) Otto's prompt forbids quoting or guessing at fragment/noise
+    transcripts, with the same explanation instead; (c) the client-side
+    recording warning and pre-send confirm use that plain English wording
+    (English only, no Russian duplication, per the founder).
