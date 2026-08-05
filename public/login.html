@@ -57,11 +57,22 @@
   </main>
   <script>
     // In-app browsers (Gmail, the Google app, Instagram, Facebook, Telegram)
-    // cannot install PWAs and keep logins in their own sandbox.
+    // cannot install PWAs and keep logins in their own sandbox. On iPhone,
+    // non-Safari browsers (Chrome, Google, Firefox, Edge) cannot reliably
+    // install home screen apps either; only Safari can.
     const ua = navigator.userAgent || '';
+    const isIOS = /iPhone|iPad|iPod/.test(ua);
     const inApp = /GSA\/|FBAN|FB_IAB|Instagram|Line\/|Telegram|; wv\)|WebView/i.test(ua);
-    if (inApp) {
+    const iosNonSafari = isIOS && /CriOS|FxiOS|EdgiOS|GSA\/|OPT\//.test(ua);
+    if (inApp || iosNonSafari) {
       document.getElementById('inapp-warn').hidden = false;
+      if (iosNonSafari) {
+        document.getElementById('inapp-how').innerHTML =
+          'On iPhone, installing Repair AI to the home screen works only from ' +
+          '<strong>Safari</strong>, even if you normally use Chrome or Google. ' +
+          'Open Safari and type <strong>otto.repairnow.app</strong>, sign in there, ' +
+          'then tap Share and Add to Home Screen.';
+      }
       document.getElementById('inapp-copy').addEventListener('click', async (e) => {
         try { await navigator.clipboard.writeText('https://otto.repairnow.app'); } catch {}
         e.target.textContent = 'Copied';

@@ -246,6 +246,13 @@ fileInput.addEventListener('change', async () => {
   }
 });
 
+// Android Chrome offers a real one-tap install; stash the event for the banner.
+let installPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installPrompt = e;
+});
+
 // --- Push notifications ---
 // Notifications are a key feature (founder ruling): the banner stays visible
 // on every open until push is actually enabled on this device.
@@ -256,15 +263,38 @@ async function setupPush() {
   const ua = navigator.userAgent || '';
   const isIOS = /iPhone|iPad|iPod/.test(ua);
   const inApp = /GSA\/|FBAN|FB_IAB|Instagram|Line\/|Telegram|; wv\)|WebView/i.test(ua);
+  // On iPhone every other browser (Chrome, the Google app, Firefox, Edge) is a
+  // shell over Apple's engine, and only Safari can install home screen web
+  // apps reliably.
+  const iosNonSafari = isIOS && /CriOS|FxiOS|EdgiOS|GSA\/|OPT\//.test(ua);
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
 
-  // Inside an email or social app browser nothing can be installed; steer to a
-  // real browser before anything else.
-  if (inApp && !standalone) {
-    bannerText.textContent =
-      'You are inside an email or social app. Open otto.repairnow.app in ' +
-      (isIOS ? 'Safari' : 'Chrome') +
-      ' to install Repair AI and get notifications.';
+  // Android one-tap install when Chrome offers it.
+  if (!standalone && !isIOS && installPrompt) {
+    bannerText.textContent = 'Install Repair AI on your home screen to get message notifications.';
+    enableBtn.hidden = false;
+    enableBtn.textContent = 'Install app';
+    banner.hidden = false;
+    enableBtn.addEventListener('click', async function installOnce() {
+      enableBtn.removeEventListener('click', installOnce);
+      const prompt = installPrompt;
+      installPrompt = null;
+      if (prompt) {
+        await prompt.prompt();
+        await prompt.userChoice.catch(() => {});
+      }
+      location.reload();
+    }, { once: true });
+    return;
+  }
+
+  // Wrong surface for installing: in-app browsers anywhere, and non-Safari
+  // browsers on iPhone. Steer to the right one before anything else.
+  if (!standalone && (inApp || iosNonSafari)) {
+    bannerText.textContent = isIOS
+      ? 'On iPhone, installing Repair AI works only from Safari, even if you normally use Chrome or Google. ' +
+        'Open Safari, go to otto.repairnow.app, sign in, then tap Share and Add to Home Screen.'
+      : 'You are inside an email or social app. Open otto.repairnow.app in Chrome to install Repair AI and get notifications.';
     enableBtn.hidden = true;
     banner.hidden = false;
     return;
