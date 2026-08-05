@@ -232,9 +232,13 @@ the parent folder; no Render API keys.
     (also from the live log, a noise voice note at 15:45).
 
 24. 2026-08-05 - Listen to how each member wants to hear from Otto: when a
-    member EXPLICITLY asks Otto to reply in voice, every Otto reply to that
-    member is a voice note for ONE HOUR after the request (or until they
-    ask to switch to text, which flips it the same way). Otto confirms
+    member EXPLICITLY asks Otto to reply in voice, in ANY language and
+    whether the request arrives as a voice note or as typed/dictated text,
+    every Otto reply to that member is a voice note for ONE HOUR after the
+    request (or until they ask to switch to text, which flips it the same
+    way). Founder-confirmed: this stated wish PREVAILS over the
+    reply-in-kind mirroring rule, so dictated text messages still get
+    voice replies during the hour. Otto confirms
     naturally, never explains mechanics. Implementation: Otto marks the
     request ([MODE:voice]/[MODE:text], stripped before posting), the
     delivery layer holds the per-member wish for an hour. Priority order:
