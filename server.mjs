@@ -248,6 +248,16 @@ const server = createServer(async (req, res) => {
       });
     }
 
+    // Mint a single-use admin login link (admin only). Returned to the admin,
+    // never sent anywhere (no external sends).
+    if (path === '/api/auth/magic-link' && req.method === 'POST') {
+      const session = requireAdmin(req, res);
+      if (!session) return;
+      const link = mintMagicLink(db, session.memberId, 'login');
+      logEvent(db, 'auth.magiclink.minted', { memberId: session.memberId });
+      return sendJson(res, 200, { url: `${url.origin}/a/${link.token}`, expiresAt: link.expiresAt.toISOString() });
+    }
+
     // Admin magic link (kept from Phase 0): GET consumes and signs in.
     if (path.startsWith('/a/') && req.method === 'GET') {
       const consumed = consumeMagicLink(db, path.slice(3));
