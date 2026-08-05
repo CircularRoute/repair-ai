@@ -230,3 +230,14 @@ the parent folder; no Render API keys.
     ("I need to correct...") or balloons is discarded and the raw
     transcript kept, so model chatter can never appear as a member's words
     (also from the live log, a noise voice note at 15:45).
+
+24. 2026-08-05 - Listen to how each member wants to hear from Otto: when a
+    member EXPLICITLY asks Otto to reply in voice, every Otto reply to that
+    member is a voice note for ONE HOUR after the request (or until they
+    ask to switch to text, which flips it the same way). Otto confirms
+    naturally, never explains mechanics. Implementation: Otto marks the
+    request ([MODE:voice]/[MODE:text], stripped before posting), the
+    delivery layer holds the per-member wish for an hour. Priority order:
+    admin always/never override, then the member's explicit hour-long
+    wish, then modality mirroring (ruling 23), then the voice-heavy
+    heuristic for proactive messages.

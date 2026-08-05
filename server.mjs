@@ -31,7 +31,7 @@ import { runExtraction, maybeRunScheduled } from './lib/insights.mjs';
 import { validTags } from './lib/taxonomy.mjs';
 import {
   CAP_LINES, CHECK_ACK, CHECK_THIN, ottoSettings, isEngagement, exchangeGate, recordOttoReply,
-  canIntervene, recordIntervention, memberPrefersVoice, generateReply, generateIntervention,
+  canIntervene, recordIntervention, memberPrefersVoice, getTempVoiceMode, generateReply, generateIntervention,
   fileAgentRequest, answerAgentRequest, generateRelay,
   ottoChat, ottoChatHistory, getOttoDirectives, removeOttoDirective,
 } from './lib/otto-engine.mjs';
@@ -195,12 +195,17 @@ async function postOttoMessage(text, { language = null, memberIdFor = null, repl
   const pref = memberIdFor
     ? db.prepare('SELECT voicePref FROM members WHERE id = ?').get(memberIdFor)?.voicePref || 'auto'
     : 'auto';
+  // Ruling 24: an explicit "reply to me in voice/text" holds for an hour and
+  // beats mirroring; the admin always/never override still beats everything.
+  const tempMode = memberIdFor ? getTempVoiceMode(db, memberIdFor) : null;
   const isQuestion = text.includes('?') && text.length <= 350;
   const wantsVoice =
     pref === 'always' ||
-    (pref === 'auto' && (replyToKind
-      ? replyToKind === 'voice'
-      : isQuestion && memberPrefersVoice(db, memberIdFor)));
+    (pref === 'auto' && (tempMode
+      ? tempMode === 'voice'
+      : replyToKind
+        ? replyToKind === 'voice'
+        : isQuestion && memberPrefersVoice(db, memberIdFor)));
   if (
     memberIdFor && pref !== 'never' && wantsVoice &&
     settings.voiceLangs.includes(language || 'en')

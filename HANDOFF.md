@@ -53,6 +53,9 @@ this document is the source of truth for what exists.
   the member - voice notes get voice replies, text gets text; the Members
   card voicePref (auto/always/never) is only an optional override; the
   AZ post-editor is code-guarded against meta-text leaking into transcripts.
+  Ruling 24: an explicit "reply to me in voice/text" from a member holds
+  for one hour (Otto marks it [MODE:voice|text], delivery honors it above
+  mirroring; admin override still highest).
   TTS voice per rulings 20-21: cedar (closest API voice to ChatGPT's Cove)
   with natural-delivery style instructions.
 - Phase 4: Bob. Five living documents (problem-map, opportunity-register,

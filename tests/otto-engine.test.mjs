@@ -200,3 +200,22 @@ test('ruling 19: Opus escalation is due only deep in an exchange and only when e
   assert.equal(exchangeDepth(db, 'p_e'), 2);
   assert.equal(exchangeDepth(db, 'someone_else'), 0);
 });
+
+test('ruling 24: explicit voice/text requests hold for an hour, marker parses cleanly', async () => {
+  const { parseModeMarker, setTempVoiceMode, getTempVoiceMode } = await import('../lib/otto-engine.mjs');
+  assert.deepEqual(parseModeMarker('[MODE:voice] Понял, буду отвечать голосом.'),
+    { mode: 'voice', text: 'Понял, буду отвечать голосом.' });
+  assert.deepEqual(parseModeMarker('[MODE:text] Ок, перехожу на текст.'),
+    { mode: 'text', text: 'Ок, перехожу на текст.' });
+  assert.equal(parseModeMarker('Обычный ответ без маркера.').mode, null);
+
+  const db = freshDb();
+  const t0 = new Date('2026-08-05T16:00:00Z');
+  assert.equal(getTempVoiceMode(db, 'p_e', t0), null);
+  setTempVoiceMode(db, 'p_e', 'voice', t0);
+  assert.equal(getTempVoiceMode(db, 'p_e', new Date('2026-08-05T16:59:00Z')), 'voice');
+  assert.equal(getTempVoiceMode(db, 'p_e', new Date('2026-08-05T17:01:00Z')), null); // expired
+  assert.equal(getTempVoiceMode(db, 'p_other', t0), null); // per member
+  setTempVoiceMode(db, 'p_e', 'text', t0); // switching back wins immediately
+  assert.equal(getTempVoiceMode(db, 'p_e', new Date('2026-08-05T16:30:00Z')), 'text');
+});
