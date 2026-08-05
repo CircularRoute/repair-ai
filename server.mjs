@@ -12,8 +12,10 @@ import { loadEnv, requireEnv } from './lib/env.mjs';
 import { openDb, ensureAdminMember, logEvent, resolveDataDir, getSetting } from './lib/db.mjs';
 import {
   SESSION_COOKIE, safeEqual, createSession, getSession, retireSession,
-  mintMagicLink, consumeMagicLink, sessionCookieHeader, clearCookieHeader, readCookies,
+  mintMagicLink, consumeMagicLink, mintLoginCode, consumeLoginCode,
+  sessionCookieHeader, clearCookieHeader, readCookies,
 } from './lib/auth.mjs';
+import { sendLoginCode, emailConfigured } from './lib/email.mjs';
 import {
   validateAttachment, storeFile, MAX_FILE_BYTES, MAX_AUDIO_BYTES, ALLOWED_EXTENSIONS,
 } from './lib/files.mjs';
@@ -173,6 +175,47 @@ function postMemberMessage(session, fields) {
   return msg;
 }
 
+// Otto onboarding fires exactly once, on a member's first successful sign-in
+// by any path (invite link, email code, or sign-in link).
+function ensureOnboarded(member) {
+  if (member.consentShownAt) return;
+  const now = new Date().toISOString();
+  db.prepare('UPDATE members SET consentShownAt = ?, joinedAt = ? WHERE id = ?').run(now, now, member.id);
+  postAndBroadcast(db, {
+    senderId: OTTO_ID,
+    senderKind: 'agent',
+    kind: 'text',
+    originalText: onboardingMessage(member.name, member.language),
+    pipelineStatus: 'done',
+    language: member.language,
+  });
+  logEvent(db, 'member.joined', { memberId: member.id });
+  notifyMembers(db, {
+    excludeMemberId: member.id,
+    title: 'Repair AI',
+    body: `${member.name} joined the group`,
+  }).catch(() => {});
+}
+
+// Simple in-memory rate limit for email-code requests.
+const codeRequests = new Map();
+function codeRequestAllowed(key, max = 5, windowMs = 15 * 60 * 1000) {
+  const now = Date.now();
+  const list = (codeRequests.get(key) || []).filter((t) => now - t < windowMs);
+  if (list.length >= max) return false;
+  list.push(now);
+  codeRequests.set(key, list);
+  return true;
+}
+
+function findMemberByEmail(email) {
+  const normalized = String(email || '').trim().toLowerCase();
+  if (!normalized) return null;
+  return db
+    .prepare("SELECT * FROM members WHERE lower(email) = ? AND status != 'retired'")
+    .get(normalized);
+}
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const path = url.pathname;
@@ -208,6 +251,74 @@ const server = createServer(async (req, res) => {
       return sendJson(res, 200, { memberId: session.memberId, name: session.name, role: session.role });
     }
 
+    // ---------- Email sign-in (ruling 13) ----------
+    // Request a 6-digit code. The response is identical whether or not the
+    // email is on the allowlist, so addresses cannot be probed.
+    if (path === '/api/auth/request-code' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const email = String(body.email || '').trim().toLowerCase();
+      const generic = { ok: true, message: 'If this email is on the member list, a code is on its way.' };
+      if (!email || !emailConfigured()) return sendJson(res, 200, generic);
+      const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+      if (!codeRequestAllowed(`e:${email}`) || !codeRequestAllowed(`ip:${ip}`, 20)) {
+        return sendJson(res, 200, generic);
+      }
+      const member = findMemberByEmail(email);
+      if (member) {
+        const { code } = mintLoginCode(db, member.id);
+        const link = mintMagicLink(db, member.id, 'signin', new Date(), 15);
+        try {
+          await sendLoginCode({
+            to: email,
+            name: member.name,
+            language: member.language,
+            code,
+            url: `${url.origin}/signin/${link.token}`,
+          });
+          logEvent(db, 'auth.code.sent', { memberId: member.id });
+        } catch (err) {
+          logEvent(db, 'auth.code.send_failed', { memberId: member.id, error: err.message });
+        }
+      }
+      return sendJson(res, 200, generic);
+    }
+
+    if (path === '/api/auth/verify-code' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const member = findMemberByEmail(body.email);
+      const code = String(body.code || '').trim();
+      if (!member || !/^\d{6}$/.test(code) || !consumeLoginCode(db, member.id, code)) {
+        logEvent(db, 'auth.code.denied', null);
+        return sendJson(res, 401, { error: 'wrong or expired code' });
+      }
+      const session = createSession(db, member.id);
+      ensureOnboarded(db.prepare('SELECT * FROM members WHERE id = ?').get(member.id));
+      logEvent(db, 'auth.code.ok', { memberId: member.id });
+      return sendJson(res, 200, { ok: true, name: member.name }, {
+        'Set-Cookie': sessionCookieHeader(session.id, session.expiresAt, { secure: SECURE_COOKIES }),
+      });
+    }
+
+    // Sign-in link landing page (desktop fallback): GET shows a button, POST
+    // consumes, so email scanners cannot burn the link.
+    if (path.startsWith('/signin/') && req.method === 'GET') {
+      return serveFile(res, join(root, 'public', 'signin.html'));
+    }
+    if (path === '/api/auth/signin' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const consumed = consumeMagicLink(db, body.token || '');
+      if (!consumed || consumed.purpose !== 'signin') {
+        return sendJson(res, 410, { error: 'sign-in link is no longer valid; request a new code' });
+      }
+      const member = db.prepare('SELECT * FROM members WHERE id = ?').get(consumed.memberId);
+      if (!member || member.status === 'retired') return sendJson(res, 410, { error: 'not a member' });
+      const session = createSession(db, member.id);
+      ensureOnboarded(member);
+      return sendJson(res, 200, { ok: true, name: member.name }, {
+        'Set-Cookie': sessionCookieHeader(session.id, session.expiresAt, { secure: SECURE_COOKIES }),
+      });
+    }
+
     // ---------- Invite flow (members) ----------
     // GET /join/:token shows the welcome + add-to-home-screen walkthrough WITHOUT
     // consuming the token (link previews must not burn it). POST consumes.
@@ -223,26 +334,7 @@ const server = createServer(async (req, res) => {
       }
       const member = db.prepare('SELECT * FROM members WHERE id = ?').get(consumed.memberId);
       const session = createSession(db, member.id);
-      const now = new Date().toISOString();
-      if (!member.consentShownAt) {
-        db.prepare('UPDATE members SET consentShownAt = ?, joinedAt = ? WHERE id = ?').run(now, now, member.id);
-        // Otto onboarding: greeting + consent + one warm question, in the
-        // member's language. Delivered exactly once, on first join.
-        postAndBroadcast(db, {
-          senderId: OTTO_ID,
-          senderKind: 'agent',
-          kind: 'text',
-          originalText: onboardingMessage(member.name, member.language),
-          pipelineStatus: 'done',
-          language: member.language,
-        });
-        logEvent(db, 'member.joined', { memberId: member.id });
-        notifyMembers(db, {
-          excludeMemberId: member.id,
-          title: 'Repair AI',
-          body: `${member.name} joined the group`,
-        }).catch(() => {});
-      }
+      ensureOnboarded(member);
       return sendJson(res, 200, { ok: true, name: member.name }, {
         'Set-Cookie': sessionCookieHeader(session.id, session.expiresAt, { secure: SECURE_COOKIES }),
       });
@@ -409,7 +501,7 @@ const server = createServer(async (req, res) => {
     // ---------- Admin APIs ----------
     if (path === '/api/admin/members' && req.method === 'GET') {
       if (!requireAdmin(req, res)) return;
-      const members = db.prepare("SELECT id, name, role, language, languages, status, joinedAt, consentShownAt FROM members ORDER BY joinedAt").all();
+      const members = db.prepare("SELECT id, name, role, language, languages, email, status, joinedAt, consentShownAt FROM members ORDER BY joinedAt").all();
       const invites = db.prepare(
         "SELECT ml.token, ml.memberId, ml.expiresAt, ml.usedAt, m.name FROM magic_links ml JOIN members m ON m.id = ml.memberId WHERE ml.purpose = 'invite' ORDER BY ml.createdAt DESC LIMIT 20"
       ).all();
@@ -422,18 +514,25 @@ const server = createServer(async (req, res) => {
       if (!requireAdmin(req, res)) return;
       const body = await readJsonBody(req);
       const name = String(body.name || '').trim();
+      const email = String(body.email || '').trim().toLowerCase();
       const valid = (l) => ['en', 'ru', 'az'].includes(l);
       const main = valid(body.language) ? body.language : 'en';
       // All languages the member uses, main first (multi-language ruling).
       const extras = Array.isArray(body.languages) ? body.languages.filter(valid) : [];
       const languages = [...new Set([main, ...extras])].join(',');
       if (!name) return sendJson(res, 400, { error: 'name required' });
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return sendJson(res, 400, { error: 'invalid email' });
+      }
+      if (email && findMemberByEmail(email)) {
+        return sendJson(res, 400, { error: 'a member with this email already exists' });
+      }
       const memberId = `p_${randomBytes(5).toString('hex')}`;
-      db.prepare('INSERT INTO members (id, name, role, language, languages, joinedAt) VALUES (?, ?, ?, ?, ?, ?)')
-        .run(memberId, name, 'partner', main, languages, new Date().toISOString());
+      db.prepare('INSERT INTO members (id, name, role, language, languages, email, joinedAt) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .run(memberId, name, 'partner', main, languages, email || null, new Date().toISOString());
       const link = mintMagicLink(db, memberId, 'invite', new Date(), 7 * 24 * 60);
-      logEvent(db, 'invite.created', { memberId, name });
-      return sendJson(res, 200, { url: `${url.origin}/join/${link.token}`, memberId, expiresAt: link.expiresAt });
+      logEvent(db, 'invite.created', { memberId, name, hasEmail: Boolean(email) });
+      return sendJson(res, 200, { url: `${url.origin}/join/${link.token}`, memberId, email: email || null, expiresAt: link.expiresAt });
     }
 
     // Remove (retire) a member: never-delete rule, so data stays; the member

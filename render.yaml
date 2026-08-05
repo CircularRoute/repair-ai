@@ -29,3 +29,7 @@ services:
         sync: false
       - key: VAPID_PRIVATE_KEY
         sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false

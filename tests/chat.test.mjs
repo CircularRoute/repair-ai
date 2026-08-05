@@ -96,3 +96,18 @@ test('deleted messages render as placeholder and hide content and media', () => 
   const row = db.prepare('SELECT * FROM messages WHERE id = ?').get(m.id);
   assert.equal(row.audioPath, '/data/audio/x.m4a');
 });
+
+test('login email templates exist per language with code and link', async () => {
+  const { sendLoginCode } = await import('../lib/email.mjs');
+  for (const language of ['en', 'ru', 'az']) {
+    let captured = null;
+    await sendLoginCode(
+      { to: 'x@y.z', name: 'X', language, code: '123456', url: 'https://otto.repairnow.app/signin/t' },
+      async (payload) => { captured = payload; return true; }
+    );
+    assert.ok(captured.subject.includes('123456'), language);
+    assert.ok(captured.text.includes('123456'), language);
+    assert.ok(captured.text.includes('https://otto.repairnow.app/signin/t'), language);
+    assert.equal(captured.text.includes(String.fromCharCode(0x2014)), false, language);
+  }
+});

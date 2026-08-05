@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101418">
+  <title>Repair AI - Sign in</title>
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="/admin/styles.css">
+</head>
+<body>
+  <main class="login-wrap">
+    <div class="login-card">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <h1>Repair AI</h1>
+      </div>
+      <p class="muted">Tap below to finish signing in.</p>
+      <button id="go">Sign in</button>
+      <p id="err" class="error" hidden></p>
+    </div>
+  </main>
+  <script>
+    document.getElementById('go').addEventListener('click', async () => {
+      const token = location.pathname.split('/').pop();
+      const res = await fetch('/api/auth/signin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+      if (res.ok) { location.href = '/chat'; }
+      else {
+        const el = document.getElementById('err');
+        el.textContent = 'This link is no longer valid. Go to the sign-in page and request a new code.';
+        el.hidden = false;
+      }
+    });
+  </script>
+</body>
+</html>

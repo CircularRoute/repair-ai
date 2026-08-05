@@ -112,3 +112,14 @@ the parent folder; no Render API keys.
     the admin corpus browser (marked deleted), and EXCLUDED from agent retrieval,
     insights, and synthesis, respecting the member's intent. Media of deleted
     messages stops being served. No time limit on deletion for now.
+
+13. 2026-08-05 - Email allowlist sign-in via Brevo: the admin maintains the member
+    allowlist (name + email + languages) in the dashboard. Members sign in by
+    entering their email at the login page; the system emails them a 6-digit code
+    (typed into the app, which keeps the session inside the installed PWA) plus a
+    fallback sign-in link. Sessions last a year and survive until sign-out;
+    signing out requires a fresh emailed code. This is an EXPLICIT founder-approved
+    exception to hard rule 3 (no external sends), STRICTLY limited to transactional
+    sign-in emails via Brevo; nothing else is ever emailed. Invite links remain as
+    a secondary path. Replaces the fragile single-use-link-only flow that broke
+    when a member installed the PWA from the join page.

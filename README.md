@@ -20,8 +20,9 @@ Then open http://localhost:8790/login and sign in with the admin token.
 
 Required env var NAMES (values in the env file locally, in Render's Environment tab
 in production): `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `REPAIR_ADMIN_TOKEN`,
-`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (the VAPID pair powers push notifications;
-without it the app runs with push disabled).
+`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (push notifications; app runs with push
+disabled without them), `BREVO_API_KEY`, `BREVO_SENDER_EMAIL` (email sign-in codes,
+ruling 13; the sender must be a Brevo-verified sender address).
 
 ## Tests
 

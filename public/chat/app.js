@@ -355,6 +355,12 @@ for (const el of [messagesEl, document.querySelector('.chat-top')]) {
 textInput.addEventListener('blur', () => setTimeout(syncViewport, 100));
 
 // --- Boot ---
+document.getElementById('signout-btn').addEventListener('click', async () => {
+  if (!confirm('Sign out? You will need a new emailed code to sign back in.')) return;
+  await fetch('/api/auth/logout', { method: 'POST' });
+  location.href = '/login';
+});
+
 async function init() {
   const res = await fetch('/api/me');
   if (!res.ok) { location.href = '/login'; return; }

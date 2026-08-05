@@ -54,7 +54,7 @@ async function loadMembers() {
     const li = el('li', 'member-row');
     const info = el('span');
     info.appendChild(el('strong', null, m.name));
-    info.appendChild(el('span', 'muted small', `  ${m.role} · ${m.languages || m.language}${m.consentShownAt ? ' · joined' : ' · invited, not joined yet'}`));
+    info.appendChild(el('span', 'muted small', `  ${m.role} · ${m.languages || m.language}${m.email ? ' · ' + m.email : ''}${m.consentShownAt ? ' · joined' : ' · not joined yet'}`));
     li.appendChild(info);
     if (m.role !== 'admin') {
       const btn = el('button', 'ghost danger', 'Remove');
@@ -76,17 +76,22 @@ async function loadMembers() {
 }
 document.getElementById('invite-create').addEventListener('click', async () => {
   const name = document.getElementById('invite-name').value.trim();
+  const email = document.getElementById('invite-email').value.trim();
   const language = document.getElementById('invite-lang').value;
   const languages = [...document.querySelectorAll('.invite-extra:checked')].map((c) => c.value);
   if (!name) return;
   const data = await api('/api/admin/invites', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, language, languages }),
+    body: JSON.stringify({ name, email, language, languages }),
   });
+  if (data.error) { alert(data.error); return; }
   const out = document.getElementById('invite-result');
   out.hidden = false;
   out.innerHTML = '';
-  out.appendChild(el('div', 'muted', `Invite link for ${name} (valid 7 days, single use):`));
+  if (data.email) {
+    out.appendChild(el('div', null, `${name} can now sign in with ${data.email} at otto.repairnow.app.`));
+  }
+  out.appendChild(el('div', 'muted', `Backup invite link for ${name} (valid 7 days, single use):`));
   out.appendChild(el('div', 'invite-url', data.url));
   const actions = el('div', 'row');
   const copyBtn = el('button', null, 'Copy link');

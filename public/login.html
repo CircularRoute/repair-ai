@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#101418">
   <title>Repair AI - Sign in</title>
-  <link rel="manifest" href="/admin/manifest.webmanifest">
+  <link rel="manifest" href="/chat/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
   <link rel="stylesheet" href="/admin/styles.css">
 </head>
@@ -16,25 +16,84 @@
         <span class="brand-dot"></span>
         <h1>Repair AI</h1>
       </div>
-      <p class="muted">Admin sign in. Paste your admin token once on this device; you stay signed in.</p>
-      <form id="login-form">
-        <input id="token" type="password" autocomplete="current-password" placeholder="Admin token" required>
-        <button type="submit">Sign in</button>
-      </form>
-      <p id="login-error" class="error" hidden>That token was not accepted.</p>
+
+      <div id="step-email">
+        <p class="muted">Enter your email and we will send you a 6-digit sign-in code.</p>
+        <form id="email-form">
+          <input id="email" type="email" autocomplete="email" placeholder="Email" required>
+          <button type="submit">Send code</button>
+        </form>
+      </div>
+
+      <div id="step-code" hidden>
+        <p class="muted" id="code-hint">Check your email and type the 6-digit code.</p>
+        <form id="code-form">
+          <input id="code" type="text" inputmode="numeric" autocomplete="one-time-code"
+            pattern="[0-9]{6}" maxlength="6" placeholder="6-digit code" required>
+          <button type="submit">Sign in</button>
+        </form>
+        <button id="resend" class="ghost">Send a new code</button>
+      </div>
+
+      <p id="login-error" class="error" hidden></p>
+
+      <details class="admin-details">
+        <summary class="muted small">Admin sign-in</summary>
+        <form id="login-form">
+          <input id="token" type="password" autocomplete="current-password" placeholder="Admin token" required>
+          <button type="submit" class="ghost">Sign in as admin</button>
+        </form>
+      </details>
     </div>
   </main>
   <script>
+    const err = document.getElementById('login-error');
+    const emailInput = document.getElementById('email');
+
+    document.getElementById('email-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      err.hidden = true;
+      await fetch('/api/auth/request-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailInput.value }),
+      });
+      document.getElementById('step-email').hidden = true;
+      document.getElementById('step-code').hidden = false;
+      document.getElementById('code').focus();
+    });
+
+    document.getElementById('resend').addEventListener('click', () => {
+      document.getElementById('step-email').hidden = false;
+      document.getElementById('step-code').hidden = true;
+      err.hidden = true;
+    });
+
+    document.getElementById('code-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      err.hidden = true;
+      const res = await fetch('/api/auth/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailInput.value, code: document.getElementById('code').value }),
+      });
+      if (res.ok) { location.href = '/chat'; }
+      else {
+        err.textContent = 'Wrong or expired code. Try again or request a new one.';
+        err.hidden = false;
+      }
+    });
+
     document.getElementById('login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const errEl = document.getElementById('login-error');
-      errEl.hidden = true;
+      err.hidden = true;
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: document.getElementById('token').value }),
       });
-      if (res.ok) { location.href = '/admin'; } else { errEl.hidden = false; }
+      if (res.ok) { location.href = '/admin'; }
+      else { err.textContent = 'That token was not accepted.'; err.hidden = false; }
     });
   </script>
 </body>
