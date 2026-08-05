@@ -66,7 +66,30 @@ document.getElementById('invite-create').addEventListener('click', async () => {
   });
   const out = document.getElementById('invite-result');
   out.hidden = false;
-  out.textContent = `Invite link for ${name} (valid 7 days, single use): ${data.url}`;
+  out.innerHTML = '';
+  out.appendChild(el('div', 'muted', `Invite link for ${name} (valid 7 days, single use):`));
+  out.appendChild(el('div', 'invite-url', data.url));
+  const actions = el('div', 'row');
+  const copyBtn = el('button', null, 'Copy link');
+  copyBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(data.url);
+    } catch {
+      // Clipboard API can be unavailable; fall back to a selectable prompt.
+      window.prompt('Copy the link:', data.url);
+    }
+    copyBtn.textContent = 'Copied';
+    setTimeout(() => { copyBtn.textContent = 'Copy link'; }, 2000);
+  });
+  actions.appendChild(copyBtn);
+  if (navigator.share) {
+    const shareBtn = el('button', 'ghost', 'Share');
+    shareBtn.addEventListener('click', () => {
+      navigator.share({ title: 'Repair AI invite', url: data.url }).catch(() => {});
+    });
+    actions.appendChild(shareBtn);
+  }
+  out.appendChild(actions);
   document.getElementById('invite-name').value = '';
   loadMembers();
 });
