@@ -132,8 +132,10 @@ micBtn.addEventListener('click', async () => {
   if (recorder) return;
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
-      : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '';
+    // Prefer AAC/mp4 where supported (iOS native, plays everywhere Apple);
+    // Chrome and Firefox fall back to webm/opus, which they play natively.
+    const mime = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4'
+      : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
     recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
     recChunks = [];
     recWanted = false;
