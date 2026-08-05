@@ -385,9 +385,9 @@ document.getElementById('bob-input').addEventListener('keydown', (e) => { if (e.
 document.getElementById('mark-send').addEventListener('click', sendToMark);
 document.getElementById('mark-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendToMark(); });
 
-// Voice questions: tap the mic to record, tap again to stop; the transcript
-// lands in the input and sends itself.
-function setupMic(btnId, inputId, sendFn) {
+// Voice input: tap the mic to record, tap again to stop; the transcript goes
+// to onText.
+function setupMic(btnId, onText) {
   const btn = document.getElementById(btnId);
   let recorder = null;
   btn.addEventListener('click', async () => {
@@ -409,27 +409,30 @@ function setupMic(btnId, inputId, sendFn) {
         btn.classList.remove('recording');
         const blob = new Blob(chunks, { type });
         if (!blob.size) return;
-        const input = document.getElementById(inputId);
-        input.value = 'Transcribing...';
         const res = await fetch('/api/admin/transcribe', { method: 'POST', headers: { 'Content-Type': type }, body: blob });
         const data = await res.json().catch(() => ({}));
-        if (res.ok && data.text) {
-          input.value = data.text;
-          sendFn();
-        } else {
-          input.value = '';
-          alert(data.error || 'Could not transcribe.');
-        }
+        if (res.ok && data.text) onText(data.text);
+        else alert(data.error || 'Could not transcribe.');
       };
       recorder.start();
       btn.classList.add('recording');
     } catch {
-      alert('Microphone access is needed to record a question.');
+      alert('Microphone access is needed to record.');
     }
   });
 }
-setupMic('bob-mic', 'bob-input', sendToBob);
-setupMic('mark-mic', 'mark-input', sendToMark);
+setupMic('bob-mic', (text) => { document.getElementById('bob-input').value = text; sendToBob(); });
+setupMic('mark-mic', (text) => { document.getElementById('mark-input').value = text; sendToMark(); });
+// Spoken knowledge: transcribed and filed as a note in any language.
+setupMic('kn-mic', async (text) => {
+  const title = `Voice note ${new Date().toLocaleString()}: ${text.slice(0, 60)}`;
+  document.getElementById('kn-status').textContent = 'Saving spoken note...';
+  const r = await api('/api/admin/knowledge/note', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, text }),
+  });
+  document.getElementById('kn-status').textContent = r.error || `Spoken note saved (${r.chunks} chunk${r.chunks === 1 ? '' : 's'}): "${text.slice(0, 80)}..."`;
+  loadKnowledge();
+});
 
 // --- Living documents ---
 async function loadDocs() {
@@ -683,6 +686,16 @@ async function loadAgentSettings() {
   document.getElementById('otto-muted').checked = s.ottoMuted;
   document.getElementById('otto-cap').value = s.ottoCap;
   document.getElementById('otto-proactive').value = s.ottoProactivePerDay;
+  document.getElementById('otto-spacing').value = s.ottoSpacingMin;
+  document.getElementById('otto-lull').value = s.ottoLullMin;
+  document.getElementById('otto-reset').value = s.ottoResetMin;
+  document.getElementById('otto-voice-select').value = s.ottoVoice;
+  document.getElementById('digest-hour').value = s.digestHourUtc;
+  document.getElementById('synthesis-hour').value = s.synthesisHourUtc;
+  document.getElementById('synthesis-min-msgs').value = s.synthesisMinMessages;
+  document.getElementById('synthesis-min-insights').value = s.synthesisMinInsights;
+  document.getElementById('mark-refresh-days').value = s.markRefreshDays;
+  document.getElementById('insights-interval').value = s.insightsIntervalHours;
   const langs = s.ottoVoiceLangs.split(',');
   for (const cb of document.querySelectorAll('.otto-voice')) cb.checked = langs.includes(cb.value);
   document.getElementById('bob-fable').checked = s.bobFable;
@@ -695,8 +708,18 @@ document.getElementById('agent-save').addEventListener('click', async () => {
       ottoMuted: document.getElementById('otto-muted').checked,
       ottoCap: Number(document.getElementById('otto-cap').value),
       ottoProactivePerDay: Number(document.getElementById('otto-proactive').value),
+      ottoSpacingMin: Number(document.getElementById('otto-spacing').value),
+      ottoLullMin: Number(document.getElementById('otto-lull').value),
+      ottoResetMin: Number(document.getElementById('otto-reset').value),
+      ottoVoice: document.getElementById('otto-voice-select').value,
       ottoVoiceLangs: [...document.querySelectorAll('.otto-voice:checked')].map((c) => c.value).join(','),
       bobFable: document.getElementById('bob-fable').checked,
+      digestHourUtc: Number(document.getElementById('digest-hour').value),
+      synthesisHourUtc: Number(document.getElementById('synthesis-hour').value),
+      synthesisMinMessages: Number(document.getElementById('synthesis-min-msgs').value),
+      synthesisMinInsights: Number(document.getElementById('synthesis-min-insights').value),
+      markRefreshDays: Number(document.getElementById('mark-refresh-days').value),
+      insightsIntervalHours: Number(document.getElementById('insights-interval').value),
     }),
   });
   document.getElementById('agent-status').textContent = 'Saved';

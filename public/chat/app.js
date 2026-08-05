@@ -249,7 +249,9 @@ micBtn.addEventListener('click', async () => {
     recBar.hidden = false;
     recTimer = setInterval(() => {
       recSeconds++;
-      recTime.textContent = `${Math.floor(recSeconds / 60)}:${String(recSeconds % 60).padStart(2, '0')}`;
+      // Members are capped at 10 minutes per voice note; the note auto-sends
+      // at the cap and a new one can start right away.
+      recTime.textContent = `${Math.floor(recSeconds / 60)}:${String(recSeconds % 60).padStart(2, '0')} / 10:00`;
       if (recSeconds >= 600) stopRecording(true);
     }, 1000);
   } catch {

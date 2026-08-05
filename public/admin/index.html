@@ -191,6 +191,7 @@
         <div id="knowledge-list"></div>
         <div class="row">
           <label class="attach-btn">Upload file<input id="kn-file" type="file" accept=".txt,.md,.csv,.pdf" hidden></label>
+          <button id="kn-mic" class="mic-btn" title="Speak knowledge into the system">&#127908; Speak</button>
           <input id="kn-link" placeholder="https:// link to ingest">
           <button id="kn-link-add" class="ghost">Add link</button>
         </div>
@@ -214,22 +215,59 @@
     <section class="card">
       <details id="agent-details">
         <summary class="card-summary"><h2>Agent controls</h2><span id="agent-mini" class="muted small"></span></summary>
+        <h3>Otto</h3>
         <div class="row"><label class="check"><input type="checkbox" id="otto-muted"> Mute Otto entirely</label></div>
         <div class="row">
-          <span class="muted small">Conversation cap (replies per exchange):</span>
+          <span class="muted small">Conversation cap:</span>
           <input id="otto-cap" type="number" min="1" max="20" class="inline-num">
-        </div>
-        <div class="row">
-          <span class="muted small">Proactive questions per day:</span>
+          <span class="muted small">Proactive/day:</span>
           <input id="otto-proactive" type="number" min="0" max="20" class="inline-num">
         </div>
+        <div class="row">
+          <span class="muted small">Min. minutes between proactive questions:</span>
+          <input id="otto-spacing" type="number" min="5" max="240" class="inline-num">
+          <span class="muted small">Quiet minutes before speaking (lull):</span>
+          <input id="otto-lull" type="number" min="2" max="120" class="inline-num">
+        </div>
+        <div class="row">
+          <span class="muted small">Exchange resets after (minutes):</span>
+          <input id="otto-reset" type="number" min="10" max="240" class="inline-num">
+          <span class="muted small">Voice:</span>
+          <select id="otto-voice-select">
+            <option value="echo">echo (clear, friendly)</option>
+            <option value="onyx">onyx (deep)</option>
+            <option value="ash">ash (brisk)</option>
+            <option value="verse">verse</option>
+          </select>
+        </div>
         <div class="row checks">
-          <span class="muted small">Voice replies:</span>
+          <span class="muted small">Voice replies in:</span>
           <label class="check"><input type="checkbox" class="otto-voice" value="en"> EN</label>
           <label class="check"><input type="checkbox" class="otto-voice" value="ru"> RU</label>
           <label class="check"><input type="checkbox" class="otto-voice" value="az"> AZ</label>
         </div>
-        <div class="row"><label class="check"><input type="checkbox" id="bob-fable"> Use Fable 5 for Bob's weekly deep synthesis</label></div>
+        <h3>Bob</h3>
+        <div class="row"><label class="check"><input type="checkbox" id="bob-fable"> Use Fable 5 for the daily deep synthesis</label></div>
+        <div class="row">
+          <span class="muted small">Digest hour (UTC):</span>
+          <input id="digest-hour" type="number" min="0" max="23" class="inline-num">
+          <span class="muted small">Synthesis hour (UTC):</span>
+          <input id="synthesis-hour" type="number" min="0" max="23" class="inline-num">
+        </div>
+        <div class="row">
+          <span class="muted small">Synthesis needs at least</span>
+          <input id="synthesis-min-msgs" type="number" min="1" max="50" class="inline-num">
+          <span class="muted small">messages and</span>
+          <input id="synthesis-min-insights" type="number" min="0" max="20" class="inline-num">
+          <span class="muted small">new insights that day</span>
+        </div>
+        <h3>Mark and pipeline</h3>
+        <div class="row">
+          <span class="muted small">Mark full refresh every (days):</span>
+          <input id="mark-refresh-days" type="number" min="1" max="30" class="inline-num">
+          <span class="muted small">Insight extraction every (hours):</span>
+          <input id="insights-interval" type="number" min="1" max="72" class="inline-num">
+        </div>
         <div class="row"><button id="agent-save">Save</button><span id="agent-status" class="muted small"></span></div>
       </details>
     </section>

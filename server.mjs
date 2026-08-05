@@ -194,7 +194,7 @@ async function postOttoMessage(text, { language = null, memberIdFor = null } = {
     memberPrefersVoice(db, memberIdFor)
   ) {
     try {
-      const buf = await tts(db, { text, voice: 'echo', agent: 'otto' });
+      const buf = await tts(db, { text, voice: settings.voice || 'echo', agent: 'otto' });
       const stored = storeFile(dataDir, 'audio', 'mp3', buf);
       audioPath = stored.path;
     } catch (err) {
@@ -1056,8 +1056,15 @@ const server = createServer(async (req, res) => {
       const s = ottoSettings(db);
       return sendJson(res, 200, {
         ottoMuted: s.muted, ottoCap: s.cap, ottoProactivePerDay: s.proactivePerDay,
-        ottoVoiceLangs: s.voiceLangs.join(','),
+        ottoSpacingMin: s.spacingMin, ottoLullMin: s.lullMin, ottoResetMin: s.resetMin,
+        ottoVoice: s.voice, ottoVoiceLangs: s.voiceLangs.join(','),
         bobFable: getSetting(db, 'bobFable', '0') === '1',
+        digestHourUtc: Number(getSetting(db, 'digestHourUtc', 3)),
+        synthesisHourUtc: Number(getSetting(db, 'synthesisHourUtc', 4)),
+        synthesisMinMessages: Number(getSetting(db, 'synthesisMinMessages', 3)),
+        synthesisMinInsights: Number(getSetting(db, 'synthesisMinInsights', 1)),
+        insightsIntervalHours: Number(getSetting(db, 'insightsIntervalHours', 20)),
+        markRefreshDays: Number(getSetting(db, 'markRefreshDays', 7)),
       });
     }
     if (path === '/api/admin/agent-settings' && req.method === 'POST') {
@@ -1070,6 +1077,19 @@ const server = createServer(async (req, res) => {
         setSetting(db, 'ottoVoiceLangs', body.ottoVoiceLangs.split(',').map((s) => s.trim()).filter((l) => ['en', 'ru', 'az'].includes(l)).join(','));
       }
       if (body.bobFable !== undefined) setSetting(db, 'bobFable', body.bobFable ? '1' : '0');
+      const numeric = {
+        ottoSpacingMin: [5, 240], ottoLullMin: [2, 120], ottoResetMin: [10, 240],
+        digestHourUtc: [0, 23], synthesisHourUtc: [0, 23],
+        synthesisMinMessages: [1, 50], synthesisMinInsights: [0, 20],
+        insightsIntervalHours: [1, 72], markRefreshDays: [1, 30],
+      };
+      for (const [key, [min, max]] of Object.entries(numeric)) {
+        const v = Number(body[key]);
+        if (body[key] !== undefined && Number.isFinite(v) && v >= min && v <= max) setSetting(db, key, v);
+      }
+      if (typeof body.ottoVoice === 'string' && ['echo', 'onyx', 'ash', 'verse'].includes(body.ottoVoice)) {
+        setSetting(db, 'ottoVoice', body.ottoVoice);
+      }
       logEvent(db, 'otto.settings_changed', null);
       return sendJson(res, 200, { ok: true });
     }
