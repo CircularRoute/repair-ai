@@ -23,7 +23,10 @@
         Repair AI app cannot be installed from here. Tap the menu in the corner and
         choose "Open in browser", or type <strong>otto.repairnow.app</strong> into
         Safari (iPhone) or Chrome (Android).</span>
-        <button id="inapp-copy" class="ghost">Copy address</button>
+        <div class="row">
+          <button id="inapp-copy" class="ghost">Copy address</button>
+          <button id="inapp-dismiss" class="ghost">Continue anyway</button>
+        </div>
       </div>
 
       <div id="step-email">
@@ -56,26 +59,35 @@
     </div>
   </main>
   <script>
-    // In-app browsers (Gmail, the Google app, Instagram, Facebook, Telegram)
-    // cannot install PWAs and keep logins in their own sandbox. On iPhone,
-    // non-Safari browsers (Chrome, Google, Firefox, Edge) cannot reliably
-    // install home screen apps either; only Safari can.
+    // Browser guidance. Three cases, all skipped inside the installed app and
+    // in real Safari, and always dismissible in case detection is ever wrong:
+    // 1. iPhone webview inside an email/social app (no "Safari/" token): can
+    //    neither install nor keep logins; go to Safari.
+    // 2. iPhone Chrome / Google app / Firefox / Edge: fine for chatting, but
+    //    only Safari can install to the home screen.
+    // 3. Android in-app webview: open in Chrome.
     const ua = navigator.userAgent || '';
     const isIOS = /iPhone|iPad|iPod/.test(ua);
-    const inApp = /GSA\/|FBAN|FB_IAB|Instagram|Line\/|Telegram|; wv\)|WebView/i.test(ua);
-    const iosNonSafari = isIOS && /CriOS|FxiOS|EdgiOS|GSA\/|OPT\//.test(ua);
-    if (inApp || iosNonSafari) {
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+    const iosWrongBrowser = isIOS && /CriOS|FxiOS|EdgiOS|GSA\/|OPT\//.test(ua);
+    const iosWebView = isIOS && !iosWrongBrowser && !/Safari\//.test(ua);
+    const androidInApp = !isIOS && /; wv\)|FBAN|FB_IAB|Instagram|Telegram|Line\//.test(ua);
+    const dismissed = sessionStorage.getItem('browserWarnDismissed') === '1';
+    if (!standalone && !dismissed && (iosWebView || iosWrongBrowser || androidInApp)) {
       document.getElementById('inapp-warn').hidden = false;
-      if (iosNonSafari) {
+      if (iosWrongBrowser) {
         document.getElementById('inapp-how').innerHTML =
-          'On iPhone, installing Repair AI to the home screen works only from ' +
-          '<strong>Safari</strong>, even if you normally use Chrome or Google. ' +
-          'Open Safari and type <strong>otto.repairnow.app</strong>, sign in there, ' +
-          'then tap Share and Add to Home Screen.';
+          'This browser works for chatting, but installing Repair AI to the home screen ' +
+          'only works from <strong>Safari</strong> on iPhone. Open Safari, type ' +
+          '<strong>otto.repairnow.app</strong>, sign in there, then tap Share and Add to Home Screen.';
       }
       document.getElementById('inapp-copy').addEventListener('click', async (e) => {
         try { await navigator.clipboard.writeText('https://otto.repairnow.app'); } catch {}
         e.target.textContent = 'Copied';
+      });
+      document.getElementById('inapp-dismiss').addEventListener('click', () => {
+        sessionStorage.setItem('browserWarnDismissed', '1');
+        document.getElementById('inapp-warn').hidden = true;
       });
     }
 

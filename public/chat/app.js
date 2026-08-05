@@ -262,11 +262,13 @@ async function setupPush() {
   const enableBtn = document.getElementById('push-enable');
   const ua = navigator.userAgent || '';
   const isIOS = /iPhone|iPad|iPod/.test(ua);
-  const inApp = /GSA\/|FBAN|FB_IAB|Instagram|Line\/|Telegram|; wv\)|WebView/i.test(ua);
   // On iPhone every other browser (Chrome, the Google app, Firefox, Edge) is a
   // shell over Apple's engine, and only Safari can install home screen web
-  // apps reliably.
+  // apps; email/social webviews carry no "Safari/" token at all. Real Safari
+  // matches neither rule.
   const iosNonSafari = isIOS && /CriOS|FxiOS|EdgiOS|GSA\/|OPT\//.test(ua);
+  const iosWebView = isIOS && !iosNonSafari && !/Safari\//.test(ua);
+  const inApp = iosWebView || (!isIOS && /; wv\)|FBAN|FB_IAB|Instagram|Telegram|Line\//.test(ua));
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
 
   // Android one-tap install when Chrome offers it.
