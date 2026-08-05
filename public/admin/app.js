@@ -339,7 +339,28 @@ async function loadAgentChat(agent, boxId, emptyLine) {
   if (!data.messages.length) addChatMsg(boxId, 'bob', emptyLine);
   for (const m of data.messages) addChatMsg(boxId, m.role, m.content);
 }
-const loadBobChat = () => loadAgentChat('bob', 'bob-chat', 'Ask me anything about what the group has said so far. I cite my sources.');
+const loadBobChat = () => loadAgentChat('bob', 'bob-chat', 'Ask me anything about what the group has said so far, or teach me how you want me to work. I cite my sources.');
+
+async function loadBobDirectives() {
+  const data = await api('/api/admin/bob/directives');
+  const box = document.getElementById('bob-directives');
+  box.innerHTML = '';
+  if (!data.directives.length) return;
+  box.appendChild(el('div', null, 'Standing instructions:'));
+  data.directives.forEach((d, i) => {
+    const row = el('div', 'row');
+    row.appendChild(el('span', 'small', d));
+    const rm = el('button', 'ghost danger', 'Remove');
+    rm.addEventListener('click', async () => {
+      await api('/api/admin/bob/directives/remove', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ index: i }),
+      });
+      loadBobDirectives();
+    });
+    row.appendChild(rm);
+    box.appendChild(row);
+  });
+}
 const loadMarkChat = () => loadAgentChat('mark', 'mark-chat', 'Ask me about the market, competitors, or anything I have researched.');
 
 async function sendToAgent(agent, inputId, boxId) {
@@ -354,6 +375,8 @@ async function sendToAgent(agent, inputId, boxId) {
   });
   pending.remove();
   addChatMsg(boxId, 'bob', data.reply || data.error || 'Something went wrong.');
+  if (agent === 'bob') loadBobDirectives();
+  if (agent === 'mark') loadMarkQueue();
 }
 const sendToBob = () => sendToAgent('bob', 'bob-input', 'bob-chat');
 const sendToMark = () => sendToAgent('mark', 'mark-input', 'mark-chat');
@@ -688,7 +711,7 @@ async function init() {
   document.getElementById('whoami').textContent = meData.name;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/admin/sw.js');
   document.getElementById('corpus-details').addEventListener('toggle', loadCorpus);
-  await Promise.all([loadSpend(), loadMembers(), loadTaxonomy(), loadAgentSettings(), loadBobChat(), loadMarkChat(), loadDocs(), loadMarkQueue(), loadRequests()]);
+  await Promise.all([loadSpend(), loadMembers(), loadTaxonomy(), loadAgentSettings(), loadBobChat(), loadBobDirectives(), loadMarkChat(), loadDocs(), loadMarkQueue(), loadRequests()]);
   setInterval(loadSpend, 30000);
   setInterval(loadCorpus, 30000);
 }

@@ -43,6 +43,7 @@ import { tts } from './lib/voice.mjs';
 import {
   DOCUMENT_TYPES, getDocuments, getDocument, generateDocument, weeklySynthesis,
   nightlyDigest, maybeEventUpdate, bobChat, bobChatHistory, maybeRunBobSchedules,
+  getBobDirectives, removeBobDirective,
 } from './lib/bob.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -826,6 +827,17 @@ const server = createServer(async (req, res) => {
         logEvent(db, 'bob.chat_error', { error: err.message });
         return sendJson(res, 500, { error: err.message });
       }
+    }
+
+    if (path === '/api/admin/bob/directives' && req.method === 'GET') {
+      if (!requireAdmin(req, res)) return;
+      return sendJson(res, 200, { directives: getBobDirectives(db) });
+    }
+    if (path === '/api/admin/bob/directives/remove' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const body = await readJsonBody(req);
+      removeBobDirective(db, Number(body.index));
+      return sendJson(res, 200, { ok: true, directives: getBobDirectives(db) });
     }
 
     if (path === '/api/admin/mark-chat' && req.method === 'GET') {
