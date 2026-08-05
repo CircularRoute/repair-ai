@@ -107,3 +107,41 @@ input {
   font-size: 1rem;
 }
 input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+
+select {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+  padding: 10px;
+  font-size: 0.95rem;
+}
+
+.row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.row input { flex: 1; min-width: 140px; }
+
+.small { font-size: 0.82rem; }
+.big { font-size: 1.6rem; font-weight: 700; }
+.inline-num { width: 80px; padding: 6px 8px; }
+
+.banner { border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+.error-banner { background: #3a1f1c; border: 1px solid var(--error); color: var(--text); }
+.error-banner button {
+  margin-left: 10px; background: var(--error); color: #fff; border: 0;
+  border-radius: 8px; padding: 6px 14px; font-weight: 700;
+}
+
+.plain-list { list-style: none; margin: 8px 0 14px; display: flex; flex-direction: column; gap: 6px; }
+.card h3 { font-size: 0.9rem; margin-top: 6px; color: var(--muted); }
+
+.corpus-item {
+  border-top: 1px solid var(--line);
+  padding: 10px 0;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.corpus-item audio { max-width: 260px; }
+.file-link { color: var(--accent); text-decoration: none; font-weight: 600; }
+
+.ghost-link { color: var(--muted); font-size: 0.85rem; text-decoration: none; border: 1px solid var(--line); border-radius: 10px; padding: 6px 12px; }
+
+#invite-result { word-break: break-all; color: var(--accent); }

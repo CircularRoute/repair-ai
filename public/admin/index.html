@@ -18,6 +18,7 @@
       <h1>Repair AI</h1>
     </div>
     <div class="topbar-right">
+      <a href="/chat" class="ghost-link">Open chat</a>
       <span id="whoami" class="muted"></span>
       <button id="logout" class="ghost">Sign out</button>
     </div>
@@ -25,56 +26,56 @@
 
   <main class="grid">
     <section class="card span2">
-      <h2>Bob</h2>
-      <p class="muted">Real-time chat with Bob lands here in Phase 4. Bob answers from
-      the live corpus with citations and can re-run any living document on demand.</p>
-      <div class="placeholder">Phase 4</div>
-    </section>
-
-    <section class="card">
-      <h2>Living documents</h2>
-      <p class="muted">Problem Map, Opportunity Register, Product Concepts, Roadmap,
-      Build Specs. Versioned, provenance-linked.</p>
-      <div class="placeholder">Phase 4</div>
-    </section>
-
-    <section class="card">
-      <h2>Corpus browser</h2>
-      <p class="muted">Search, transcripts next to audio, AZ corrections, re-tagging.</p>
-      <div class="placeholder">Phase 1-2</div>
+      <h2>Spend meter</h2>
+      <div id="spend-blocked" class="banner error-banner" hidden>
+        Daily ceiling reached. Agents are paused.
+        <button id="unblock-btn">Unblock</button>
+      </div>
+      <p><span id="spend-today" class="big">$0.00</span> <span class="muted">today of</span>
+        <input id="ceiling-input" type="number" min="1" step="1" class="inline-num"> <span class="muted">USD/day</span>
+        <button id="ceiling-save" class="ghost">Save</button></p>
+      <div id="spend-agents" class="muted small"></div>
     </section>
 
     <section class="card">
       <h2>Members</h2>
-      <p class="muted">Invite links, join status, language preference.</p>
-      <div class="placeholder">Phase 1</div>
+      <ul id="member-list" class="plain-list"></ul>
+      <h3>Invite a member</h3>
+      <div class="row">
+        <input id="invite-name" placeholder="Name">
+        <select id="invite-lang">
+          <option value="en">English</option>
+          <option value="ru">Russian</option>
+          <option value="az">Azerbaijani</option>
+        </select>
+        <button id="invite-create">Create link</button>
+      </div>
+      <p id="invite-result" class="small" hidden></p>
+    </section>
+
+    <section class="card span2">
+      <h2>Corpus browser</h2>
+      <p class="muted small">Latest messages with transcripts and English shadow translations.
+        Low-confidence AZ transcripts show a correction box; corrections feed the glossary.</p>
+      <div id="corpus"></div>
     </section>
 
     <section class="card">
-      <h2>Agent controls</h2>
-      <p class="muted">Otto budget and caps, voice per language, Bob model tier and
-      schedules, Mark requests.</p>
-      <div class="placeholder">Phase 3-5</div>
+      <h2>Bob</h2>
+      <p class="muted">Real-time chat with Bob lands here in Phase 4.</p>
+      <div class="placeholder">Phase 4</div>
     </section>
 
     <section class="card">
       <h2>Mark</h2>
-      <p class="muted">Market landscape, competitor tracker, targeting and ICP,
-      channel opportunities.</p>
+      <p class="muted">Market research documents land here in Phase 5.</p>
       <div class="placeholder">Phase 5</div>
     </section>
 
     <section class="card">
-      <h2>Spend meter</h2>
-      <p class="muted">API cost today and this week, per agent, with the daily
-      ceiling and graceful degradation.</p>
-      <div class="placeholder">Phase 1</div>
-    </section>
-
-    <section class="card span2">
-      <h2>Status</h2>
-      <p id="status" class="muted">Phase 0 shell online. Service healthy, database
-      initialized, auth working. Next: Phase 1, the chat PWA and capture pipeline.</p>
+      <h2>Agent controls</h2>
+      <p class="muted">Otto budgets and caps arrive in Phase 3.</p>
+      <div class="placeholder">Phase 3</div>
     </section>
   </main>
 

@@ -19,7 +19,9 @@ npm start
 Then open http://localhost:8790/login and sign in with the admin token.
 
 Required env var NAMES (values in the env file locally, in Render's Environment tab
-in production): `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `REPAIR_ADMIN_TOKEN`.
+in production): `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `REPAIR_ADMIN_TOKEN`,
+`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (the VAPID pair powers push notifications;
+without it the app runs with push disabled).
 
 ## Tests
 
@@ -42,6 +44,11 @@ npm test
 
 ## Phase status
 
-- Phase 0 (this scaffold): env wiring, SQLite skeleton, magic-link auth skeleton,
-  admin PWA shell, Render blueprint.
-- Next: Phase 1, the member chat PWA and capture pipeline.
+- Phase 0 (done): env wiring, SQLite skeleton, magic-link auth, admin PWA shell,
+  Render blueprint, custom domain otto.repairnow.app.
+- Phase 1 (built, pending founder acceptance): member chat PWA at /chat (text,
+  voice notes, allowlisted attachments), invite flow with home-screen walkthrough
+  at /join/:token, capture pipeline (transcription with the reinforced AZ path,
+  language detection, English shadow translation), web push, spend meter with the
+  $20/day ceiling and admin-only unblock, Otto onboarding-only.
+- Next: Phase 2, corpus intelligence (classification, embeddings, insights).

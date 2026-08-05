@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101418">
+  <title>Repair AI - Join</title>
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="/admin/styles.css">
+</head>
+<body>
+  <main class="login-wrap">
+    <div class="login-card">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <h1>Repair AI</h1>
+      </div>
+      <p id="intro" class="muted">You are invited to the Repair AI group chat.</p>
+
+      <div id="ios-steps" hidden>
+        <p><strong>One step first, so notifications work:</strong></p>
+        <p class="muted">1. Tap the Share button in Safari (the square with the arrow).<br>
+        2. Choose <strong>Add to Home Screen</strong>.<br>
+        3. Open <strong>Repair AI</strong> from your home screen and tap Join there.</p>
+      </div>
+
+      <button id="join">Join the group</button>
+      <p id="join-error" class="error" hidden></p>
+    </div>
+  </main>
+  <script>
+    const token = location.pathname.split('/').pop();
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+    if (isIOS && !standalone) document.getElementById('ios-steps').hidden = false;
+
+    document.getElementById('join').addEventListener('click', async () => {
+      const errEl = document.getElementById('join-error');
+      errEl.hidden = true;
+      const res = await fetch('/api/auth/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+      if (res.ok) {
+        location.href = '/chat';
+      } else {
+        const data = await res.json().catch(() => ({}));
+        errEl.textContent = data.error || 'This invite link is no longer valid. Ask Rashad for a new one.';
+        errEl.hidden = false;
+      }
+    });
+  </script>
+</body>
+</html>
