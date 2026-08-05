@@ -120,20 +120,45 @@ function requireAdmin(req, res) {
   return session;
 }
 
-// Serve a stored file safely: confined to dataDir, download-only, nosniff.
-function serveStoredFile(res, filePath, { fileName, mime, inlineAudio = false }) {
+// Serve a stored file safely: confined to dataDir, download-only for
+// attachments, inline for audio. Supports HTTP Range requests, which iOS
+// Safari REQUIRES before it will play audio or video at all.
+function serveStoredFile(req, res, filePath, { fileName, mime, inlineAudio = false }) {
   const resolved = normalize(filePath);
   if (!resolved.startsWith(normalize(dataDir)) || !existsSync(resolved)) {
     return send(res, 404, 'Not found');
   }
+  const size = statSync(resolved).size;
   const headers = {
     'Content-Type': mime || 'application/octet-stream',
     'X-Content-Type-Options': 'nosniff',
+    'Accept-Ranges': 'bytes',
     'Content-Disposition': inlineAudio
       ? 'inline'
       : `attachment; filename="${(fileName || 'file').replace(/[^\w.\- ]/g, '_')}"`,
   };
-  res.writeHead(200, headers);
+
+  const range = req.headers.range;
+  if (range) {
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range.trim());
+    if (match && (match[1] !== '' || match[2] !== '')) {
+      let start = match[1] === '' ? size - Number(match[2]) : Number(match[1]);
+      let end = match[1] !== '' && match[2] !== '' ? Number(match[2]) : size - 1;
+      if (start < 0) start = 0;
+      if (end >= size) end = size - 1;
+      if (start > end || start >= size) {
+        return send(res, 416, '', { 'Content-Range': `bytes */${size}` });
+      }
+      res.writeHead(206, {
+        ...headers,
+        'Content-Range': `bytes ${start}-${end}/${size}`,
+        'Content-Length': end - start + 1,
+      });
+      createReadStream(resolved, { start, end }).pipe(res);
+      return;
+    }
+  }
+  res.writeHead(200, { ...headers, 'Content-Length': size });
   createReadStream(resolved).pipe(res);
 }
 
@@ -325,10 +350,10 @@ const server = createServer(async (req, res) => {
       if (!msg) return send(res, 404, 'Not found');
       if (msg.audioPath) {
         const ext = msg.audioPath.split('.').pop();
-        return serveStoredFile(res, msg.audioPath, { mime: AUDIO_MIME[ext] || 'audio/mpeg', inlineAudio: true });
+        return serveStoredFile(req, res, msg.audioPath, { mime: AUDIO_MIME[ext] || 'audio/mpeg', inlineAudio: true });
       }
       if (msg.filePath) {
-        return serveStoredFile(res, msg.filePath, { fileName: msg.fileName, mime: msg.fileMime });
+        return serveStoredFile(req, res, msg.filePath, { fileName: msg.fileName, mime: msg.fileMime });
       }
       return send(res, 404, 'Not found');
     }
