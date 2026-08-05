@@ -16,5 +16,8 @@
   },
   "allowScripts": {
     "better-sqlite3@12.11.1": true
+  },
+  "devDependencies": {
+    "sharp": "^0.35.3"
   }
 }

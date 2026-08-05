@@ -1,8 +1,9 @@
-// One-off icon generator: solid brand-color PNGs with a lighter center square,
-// no image dependencies. Run: node tools/make-icons.mjs
-// Placeholder art for Phase 0; replace with real icons whenever the founder wants.
+// Icon generator: dark background, green wrench glyph, "Repair AI" wordmark.
+// Rasterizes an inline SVG with sharp (dev dependency only; the PNGs are
+// committed, production never needs sharp). Run: node tools/make-icons.mjs
+// Wrench path is the Material Icons "build" glyph (Apache 2.0).
 
-import { deflateSync } from 'node:zlib';
+import sharp from 'sharp';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,66 +11,30 @@ import { fileURLToPath } from 'node:url';
 const outDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'icons');
 mkdirSync(outDir, { recursive: true });
 
-const crcTable = new Int32Array(256).map((_, n) => {
-  let c = n;
-  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-  return c;
-});
+const WRENCH =
+  'M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z';
 
-function crc32(buf) {
-  let c = 0xffffffff;
-  for (const byte of buf) c = crcTable[(c ^ byte) & 0xff] ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
-}
-
-function chunk(type, data) {
-  const len = Buffer.alloc(4);
-  len.writeUInt32BE(data.length);
-  const typeBuf = Buffer.from(type, 'ascii');
-  const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(Buffer.concat([typeBuf, data])));
-  return Buffer.concat([len, typeBuf, data, crc]);
-}
-
-function png(size, pixelAt) {
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(size, 0);
-  ihdr.writeUInt32BE(size, 4);
-  ihdr[8] = 8; // bit depth
-  ihdr[9] = 2; // color type: RGB
-  const raw = Buffer.alloc(size * (size * 3 + 1));
-  let offset = 0;
-  for (let y = 0; y < size; y++) {
-    raw[offset++] = 0; // filter: none
-    for (let x = 0; x < size; x++) {
-      const [r, g, b] = pixelAt(x, y, size);
-      raw[offset++] = r;
-      raw[offset++] = g;
-      raw[offset++] = b;
-    }
-  }
-  return Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    chunk('IHDR', ihdr),
-    chunk('IDAT', deflateSync(raw)),
-    chunk('IEND', Buffer.alloc(0)),
-  ]);
-}
-
-const bg = [16, 20, 24]; // #101418
-const accent = [63, 166, 106]; // #3fa66a
-
-function art(x, y, size) {
-  const margin = Math.floor(size * 0.22);
-  const inSquare = x >= margin && x < size - margin && y >= margin && y < size - margin;
-  return inSquare ? accent : bg;
-}
+// 512x512 master art. The wrench sits in the upper middle, the wordmark below.
+const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#101418"/>
+  <g transform="translate(256 208)">
+    <g transform="translate(-105 -105) scale(8.75)">
+      <path d="${WRENCH}" fill="#3fa66a"/>
+    </g>
+  </g>
+  <text x="256" y="416" text-anchor="middle"
+        font-family="Helvetica, Arial, sans-serif" font-weight="700"
+        font-size="76" fill="#e8edf2">Repair AI</text>
+</svg>
+`;
 
 for (const [name, size] of [
-  ['icon-192.png', 192],
   ['icon-512.png', 512],
+  ['icon-192.png', 192],
   ['apple-touch-icon.png', 180],
 ]) {
-  writeFileSync(join(outDir, name), png(size, art));
+  const png = await sharp(Buffer.from(svg)).resize(size, size).png().toBuffer();
+  writeFileSync(join(outDir, name), png);
   console.log('wrote', name);
 }
