@@ -62,6 +62,20 @@ async function loadMembers() {
     info.appendChild(el('strong', null, m.name));
     info.appendChild(el('span', 'muted small', `  ${m.role} · ${m.languages || m.language}${m.email ? ' · ' + m.email : ''}${m.consentShownAt ? ' · joined' : ' · not joined yet'}`));
     li.appendChild(info);
+    const langBtn = el('button', 'ghost', 'Langs');
+    langBtn.addEventListener('click', async () => {
+      const current = m.languages || m.language;
+      const input = window.prompt(
+        `Languages for ${m.name}, comma separated, main first (en, ru, az):`, current);
+      if (!input) return;
+      const resp = await api('/api/admin/members/languages', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberId: m.id, languages: input }),
+      });
+      if (resp.error) alert(resp.error);
+      loadMembers();
+    });
+    li.appendChild(langBtn);
     if (m.role !== 'admin') {
       const btn = el('button', 'ghost danger', 'Remove');
       btn.addEventListener('click', async () => {
@@ -158,12 +172,13 @@ async function loadCorpus() {
       item.appendChild(audio);
       if (m.transcript) item.appendChild(el('div', null, m.transcript));
       if (m.transcriptAlt) item.appendChild(el('div', 'muted small', `Alt transcript: ${m.transcriptAlt}`));
-      if (m.transcriptConfidence !== null && m.transcriptConfidence < 0.6) {
+      // Every voice transcript is correctable; corrections feed the glossary.
+      {
         const fix = el('div', 'row');
         const input = document.createElement('input');
         input.value = m.transcript || '';
         input.placeholder = 'Corrected transcript';
-        const btn = el('button', 'ghost', 'Save correction');
+        const btn = el('button', 'ghost', m.transcriptConfidence !== null && m.transcriptConfidence < 0.6 ? 'Save correction (low confidence)' : 'Save correction');
         btn.addEventListener('click', async () => {
           await api('/api/admin/correct-transcript', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },

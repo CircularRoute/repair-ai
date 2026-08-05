@@ -553,6 +553,22 @@ const server = createServer(async (req, res) => {
       return sendJson(res, 200, { url: `${url.origin}/join/${link.token}`, memberId, email: email || null, emailSent, expiresAt: link.expiresAt });
     }
 
+    // Edit a member's languages (main first).
+    if (path === '/api/admin/members/languages' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const body = await readJsonBody(req);
+      const member = db.prepare('SELECT * FROM members WHERE id = ?').get(body.memberId || '');
+      if (!member) return sendJson(res, 404, { error: 'member not found' });
+      const valid = (l) => ['en', 'ru', 'az'].includes(l);
+      const list = String(body.languages || '').split(',').map((s) => s.trim().toLowerCase()).filter(valid);
+      if (!list.length) return sendJson(res, 400, { error: 'give a comma list from: en, ru, az' });
+      const unique = [...new Set(list)];
+      db.prepare('UPDATE members SET language = ?, languages = ? WHERE id = ?')
+        .run(unique[0], unique.join(','), member.id);
+      logEvent(db, 'member.languages_changed', { memberId: member.id, languages: unique.join(',') });
+      return sendJson(res, 200, { ok: true, language: unique[0], languages: unique.join(',') });
+    }
+
     // Remove (retire) a member: never-delete rule, so data stays; the member
     // loses access (sessions retired, unused invites voided) and leaves the
     // active list. Admin-only; the admin cannot remove themselves.
