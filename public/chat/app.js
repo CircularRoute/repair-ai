@@ -9,7 +9,6 @@ const textInput = document.getElementById('text-input');
 const sendBtn = document.getElementById('send-btn');
 const micBtn = document.getElementById('mic-btn');
 const fileInput = document.getElementById('file-input');
-const notifyBtn = document.getElementById('notify-btn');
 
 function fmtTime(ts) {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -248,41 +247,76 @@ fileInput.addEventListener('change', async () => {
 });
 
 // --- Push notifications ---
+// Notifications are a key feature (founder ruling): the banner stays visible
+// on every open until push is actually enabled on this device.
 async function setupPush() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  const banner = document.getElementById('push-banner');
+  const bannerText = document.getElementById('push-banner-text');
+  const enableBtn = document.getElementById('push-enable');
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+
+  if (!('serviceWorker' in navigator)) return;
   const reg = await navigator.serviceWorker.register('/chat/sw.js');
-  const keyRes = await fetch('/api/push/key');
-  const { key } = await keyRes.json();
+  const { key } = await (await fetch('/api/push/key')).json();
   if (!key) return;
 
-  async function subscribe() {
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') return;
-    const sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(key),
-    });
+  const supported = 'PushManager' in window && 'Notification' in window;
+
+  async function syncSubscription(sub) {
     await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ subscription: sub.toJSON() }),
     });
-    notifyBtn.hidden = true;
   }
 
-  const existing = await reg.pushManager.getSubscription();
-  if (existing) {
-    await fetch('/api/push/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subscription: existing.toJSON() }),
-    });
-  } else if (Notification.permission === 'granted') {
-    subscribe();
-  } else {
-    notifyBtn.hidden = false;
-    notifyBtn.addEventListener('click', subscribe);
+  async function refreshBanner() {
+    if (!supported) {
+      if (isIOS && !standalone) {
+        bannerText.textContent =
+          'Notifications need the installed app: tap Share, then Add to Home Screen, and open Repair AI from your home screen.';
+        enableBtn.hidden = true;
+        banner.hidden = false;
+      } else {
+        banner.hidden = true;
+      }
+      return;
+    }
+    const sub = await reg.pushManager.getSubscription();
+    if (sub && Notification.permission === 'granted') {
+      await syncSubscription(sub);
+      banner.hidden = true;
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      bannerText.textContent =
+        'Notifications are blocked for Repair AI. Enable them in your phone Settings under Notifications, then reopen the app.';
+      enableBtn.hidden = true;
+      banner.hidden = false;
+      return;
+    }
+    bannerText.textContent =
+      'Turn on notifications so you never miss a message. It is a key part of this group.';
+    enableBtn.hidden = false;
+    banner.hidden = false;
   }
+
+  enableBtn.addEventListener('click', async () => {
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(key),
+        });
+        await syncSubscription(sub);
+      }
+    } catch {}
+    refreshBanner();
+  });
+
+  await refreshBanner();
 }
 
 function urlBase64ToUint8Array(base64String) {
