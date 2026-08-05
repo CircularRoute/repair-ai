@@ -63,3 +63,28 @@ test('legacy bob_chat rows carry over into agent_chat once', () => {
   const db2 = db; // same handle; call history after a fresh open would carry over
   assert.ok(db2);
 });
+
+test('daily synthesis gate (ruling 15): quiet days and no-substance days skip', async () => {
+  const { shouldRunDailySynthesis } = await import('../lib/bob.mjs');
+  const { insertMessage } = await import('../lib/chat.mjs');
+  const now = new Date('2026-08-06T04:05:00Z');
+
+  // Quiet day: fewer than 3 member messages.
+  const db1 = freshDb();
+  assert.equal(shouldRunDailySynthesis(db1, now).reason, 'quiet-day');
+
+  // Chatter without substance: messages but no new insights.
+  const db2 = freshDb();
+  for (let i = 0; i < 4; i++) {
+    insertMessage(db2, { senderId: 'admin', senderKind: 'member', kind: 'text', originalText: 'test ' + i, ts: new Date(now.getTime() - i * 60000 - 60000).toISOString() });
+  }
+  assert.equal(shouldRunDailySynthesis(db2, now).reason, 'no-substance');
+
+  // Substantial day: messages plus a fresh insight.
+  db2.prepare("INSERT INTO insights (text, tag, sourceMessageIds, extractedAt) VALUES ('real finding about missed calls', 'operations/customer-communication', '[]', ?)").run(new Date(now.getTime() - 3600000).toISOString());
+  assert.equal(shouldRunDailySynthesis(db2, now).run, true);
+
+  // Already ran within 20h: skip.
+  setSetting(db2, 'bobSynthesisLastRunAt', new Date(now.getTime() - 3600000).toISOString());
+  assert.equal(shouldRunDailySynthesis(db2, now).reason, 'already-ran');
+});

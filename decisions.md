@@ -132,3 +132,12 @@ the parent folder; no Render API keys.
     message in the window, including replies between members after someone
     answered Otto, is member-to-member conversation: captured, never replied to.
     This supersedes the earlier 15-minute same-member continuation rule.
+
+15. 2026-08-05 - Daily synthesis instead of weekly: Bob runs the full deep
+    synthesis (five documents + memo) DAILY at around 04:00 UTC, but only when
+    the day actually produced substance: at least 3 member messages in the last
+    24 hours AND at least 1 new insight extracted since the last synthesis (the
+    insight extractor already skips greetings and test messages, so test-only
+    days do not count). Quiet days are skipped with a logged reason. The manual
+    "Run full synthesis" button ignores the gate. The Fable toggle applies to
+    these daily runs.

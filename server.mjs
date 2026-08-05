@@ -1131,9 +1131,20 @@ setInterval(async () => {
   } catch {}
 }, 60 * 60 * 1000);
 
-// Bob's clocks: nightly digest around 03:00 UTC, weekly deep synthesis.
+// Bob's clocks: nightly digest around 03:00 UTC, daily full synthesis around
+// 04:00 UTC gated on the day's substance (ruling 15), with extraction catch-up
+// first so the gate judges real insights.
 setInterval(() => {
-  maybeRunBobSchedules(db, { onBlock }).catch(() => {});
+  maybeRunBobSchedules(db, {
+    onBlock,
+    catchUpExtraction: async () => {
+      let guard = 0;
+      while (guard++ < 5) {
+        const result = await runExtraction(db, { onBlock });
+        if (!result.processed) break;
+      }
+    },
+  }).catch(() => {});
 }, 60 * 60 * 1000);
 
 // Mark's clock: weekly research refresh, and queued topics between runs.
