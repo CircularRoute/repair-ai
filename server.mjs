@@ -185,17 +185,22 @@ function serveStoredFile(req, res, filePath, { fileName, mime, inlineAudio = fal
 }
 
 // Posts an Otto message (text, optionally as a voice note with the text kept).
-async function postOttoMessage(text, { language = null, memberIdFor = null } = {}) {
+// Ruling 23 (amended): Otto mirrors the member - a voice message gets a voice
+// reply, a text message gets text (replyToKind). Proactive messages with no
+// message to mirror fall back to the voice-heavy-member heuristic. The admin
+// voicePref (always/never) remains as a per-member override only.
+async function postOttoMessage(text, { language = null, memberIdFor = null, replyToKind = null } = {}) {
   let audioPath = null;
   const settings = ottoSettings(db);
-  // Ruling 23: an explicit member preference beats the rationing heuristic.
   const pref = memberIdFor
     ? db.prepare('SELECT voicePref FROM members WHERE id = ?').get(memberIdFor)?.voicePref || 'auto'
     : 'auto';
   const isQuestion = text.includes('?') && text.length <= 350;
   const wantsVoice =
     pref === 'always' ||
-    (pref === 'auto' && isQuestion && memberPrefersVoice(db, memberIdFor));
+    (pref === 'auto' && (replyToKind
+      ? replyToKind === 'voice'
+      : isQuestion && memberPrefersVoice(db, memberIdFor)));
   if (
     memberIdFor && pref !== 'never' && wantsVoice &&
     settings.voiceLangs.includes(language || 'en')
@@ -232,9 +237,10 @@ async function ottoConsider(processedMsg) {
     const gate = exchangeGate(db, processedMsg.senderId);
     if (gate === 'silent') return;
     const language = processedMsg.language || 'en';
+    const mirror = { language, memberIdFor: processedMsg.senderId, replyToKind: processedMsg.kind };
     if (gate === 'cap') {
       // The founder's verbatim line, translated, then quiet on this thread.
-      await postOttoMessage(CAP_LINES[language] || CAP_LINES.en, { language });
+      await postOttoMessage(CAP_LINES[language] || CAP_LINES.en, mirror);
       recordOttoReply(db, processedMsg.senderId, { capped: true });
       logEvent(db, 'otto.capped', { memberId: processedMsg.senderId });
       return;
@@ -243,17 +249,18 @@ async function ottoConsider(processedMsg) {
     if (!result) return;
     if (result.kind === 'check') {
       // Check-with protocol (spec 7b): acknowledge, file, resolve, relay.
-      await postOttoMessage((CHECK_ACK[result.toAgent] || CHECK_ACK.mark)[language] || CHECK_ACK[result.toAgent].en, { language });
+      await postOttoMessage((CHECK_ACK[result.toAgent] || CHECK_ACK.mark)[language] || CHECK_ACK[result.toAgent].en, mirror);
       recordOttoReply(db, processedMsg.senderId);
       const requestId = fileAgentRequest(db, {
         toAgent: result.toAgent, question: result.question, contextRefs: [processedMsg.id],
       });
       resolveAgentRequest(requestId, result.toAgent, result.question, {
         language, memberName: db.prepare('SELECT name FROM members WHERE id = ?').get(processedMsg.senderId)?.name || 'the member',
+        mirror,
       }).catch((err) => logEvent(db, 'agent_request.error', { requestId, error: err.message }));
       return;
     }
-    await postOttoMessage(result.text, { language, memberIdFor: processedMsg.senderId });
+    await postOttoMessage(result.text, mirror);
     recordOttoReply(db, processedMsg.senderId);
     logEvent(db, 'otto.replied', { to: processedMsg.senderId });
   } catch (err) {
@@ -263,20 +270,20 @@ async function ottoConsider(processedMsg) {
 
 // Resolves a check-with request: Bob answers from retrieval, Mark from his
 // existing research shelf; thin answers queue research and say so plainly.
-async function resolveAgentRequest(requestId, toAgent, question, { language, memberName }) {
+async function resolveAgentRequest(requestId, toAgent, question, { language, memberName, mirror = null }) {
   const answer = toAgent === 'bob'
     ? await bobAnswerQuestion(db, question, { onBlock })
     : await answerFromResearch(db, question, { onBlock });
   if (!answer) {
     if (toAgent === 'mark') queueResearch(db, question);
     answerAgentRequest(db, requestId, null, 'declined');
-    await postOttoMessage((CHECK_THIN[toAgent] || CHECK_THIN.mark)[language] || CHECK_THIN[toAgent].en, { language });
+    await postOttoMessage((CHECK_THIN[toAgent] || CHECK_THIN.mark)[language] || CHECK_THIN[toAgent].en, mirror || { language });
     return;
   }
   answerAgentRequest(db, requestId, answer, 'answered');
   const relay = await generateRelay(db, { toAgent, answer, language, memberName }, { onBlock });
   if (relay) {
-    await postOttoMessage(relay, { language });
+    await postOttoMessage(relay, mirror || { language });
     answerAgentRequest(db, requestId, answer, 'relayed');
   }
 }

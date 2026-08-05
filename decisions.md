@@ -218,11 +218,14 @@ the parent folder; no Render API keys.
     notes are transcribed for him or that his replies can be TTS-delivered.
     Fixed three ways: (a) Otto's prompt now states his real capabilities
     (he hears every voice note via transcription, his replies can be voice)
-    and forbids denying them; when a member asks for voice replies he says
-    Rashad can switch it on. (b) Per-member voice preference on the member
-    record (auto = rationing heuristic, always = every Otto reply to them
-    is a voice note, never = text only), set from the dashboard Members
-    card; Zaur set to always per his request. (c) The AZ transcript
+    and forbids denying them. (b) AMENDED same day by the founder: no
+    admin-set preference needed; Otto simply mirrors the member - a voice
+    message gets a voice reply, a text message gets a text reply. Members
+    control it by how they talk. Proactive messages (nothing to mirror)
+    keep the voice-heavy-member heuristic; the dashboard voicePref
+    (auto/always/never) remains only as an optional override, default
+    auto = mirror, and Zaur's earlier "always" was reset to auto.
+    (c) The AZ transcript
     post-editor is guarded in code: output that leaks model meta-text
     ("I need to correct...") or balloons is discarded and the raw
     transcript kept, so model chatter can never appear as a member's words
