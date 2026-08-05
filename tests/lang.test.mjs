@@ -37,3 +37,14 @@ test('post-edit guard: meta leaks and ballooned output fall back to the raw tran
   assert.equal(guardPostEdit(raw, ''), raw);
   assert.equal(guardPostEdit(raw, 'x'.repeat(raw.length * 2 + 100)), raw);
 });
+
+test('foreign-script transcripts are flagged as garbage (ruling 26)', async () => {
+  const { looksForeignScript } = await import('../lib/pipeline.mjs');
+  assert.equal(looksForeignScript('وَعَبُو'), true); // seen live from a noise note
+  assert.equal(looksForeignScript('日本語のテキスト'), true);
+  assert.equal(looksForeignScript('שלום'), true);
+  assert.equal(looksForeignScript('Kontrol paneldə start düyməsi işləmir'), false);
+  assert.equal(looksForeignScript('Потерял два заказа сегодня'), false);
+  assert.equal(looksForeignScript('the start button sticks'), false);
+  assert.equal(looksForeignScript(''), false);
+});

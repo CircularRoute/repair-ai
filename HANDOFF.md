@@ -192,8 +192,12 @@ byte rate cannot contain speech; the client sends X-Rec-Seconds and the
 server marks such notes pipelineStatus='silent', never transcribes them
 (hallucination cannot happen), and Otto immediately explains the mic cause
 and asks to resend; Otto's prompt additionally forbids quoting or guessing
-at noise/fragment transcripts. Not caused by model escalation or the
-pipeline; capture and playback code are fine.
+at noise/fragment transcripts. Ruling 26 adds the garbled gate: transcripts
+in foreign scripts or judged another-language/gibberish become
+pipelineStatus='garbled' (kept for admin, correctable, never
+classified/embedded/shown to Otto); Otto posts the same deduped mic
+explanation. Not caused by model escalation or the pipeline; capture and
+playback code are fine.
 
 ## Known gaps and candidate next steps
 

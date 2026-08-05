@@ -232,12 +232,35 @@ async function postOttoMessage(text, { language = null, memberIdFor = null, repl
   return msg;
 }
 
+// One plain explanation for unusable voice notes (rulings 25-26): silent
+// recordings and garbled transcripts both come from the mic being taken by
+// another program. Deterministic text, never generated, deduped so a broken
+// mic cannot make Otto spam it.
+const OTTO_CANT_HEAR =
+  'I could not make out that voice note: the audio came through empty or broken, most likely because the ' +
+  'microphone is used by another program on your phone (a call, Siri, CarPlay, or car Bluetooth). Free up ' +
+  'the microphone and send it again, please.';
+async function postCantHear(memberId) {
+  const last = db
+    .prepare("SELECT senderId, originalText FROM messages WHERE status = 'active' AND senderKind != 'system' ORDER BY ts DESC LIMIT 2")
+    .all()
+    .find((m) => m.senderId === OTTO_ID);
+  if (last && last.originalText === OTTO_CANT_HEAR) return;
+  await postOttoMessage(OTTO_CANT_HEAR, { language: 'en', memberIdFor: memberId, replyToKind: 'voice' });
+}
+
 // Otto's engagement check, run after the pipeline finishes a member message.
 async function ottoConsider(processedMsg) {
   try {
     if (processedMsg.senderKind !== 'member' || processedMsg.status !== 'active') return;
     const settings = ottoSettings(db);
     if (settings.muted) return;
+    // A garbled voice note gets the mic explanation, never a normal reply
+    // (ruling 26); Otto must not reason about garbage transcripts.
+    if (processedMsg.pipelineStatus === 'garbled') {
+      await postCantHear(processedMsg.senderId);
+      return;
+    }
     if (!isEngagement(db, processedMsg)) return;
     const gate = exchangeGate(db, processedMsg.senderId);
     if (gate === 'silent') return;
@@ -580,11 +603,7 @@ const server = createServer(async (req, res) => {
           audioPath: stored.path, pipelineStatus: 'silent', transcript: null,
         });
         logEvent(db, 'voice.silent', { memberId: session.memberId, bytes: buf.length, seconds: recSeconds });
-        postOttoMessage(
-          'I could not hear that voice note: no sound reached me, because the microphone was being used by ' +
-          'another program on your phone (a call, Siri, CarPlay, or car Bluetooth). Free up the mic and send it again, please.',
-          { language: 'en', memberIdFor: session.memberId, replyToKind: 'voice' }
-        ).catch((err) => logEvent(db, 'otto.error', { error: err.message }));
+        postCantHear(session.memberId).catch((err) => logEvent(db, 'otto.error', { error: err.message }));
         return sendJson(res, 200, { ok: true, message: messageView(db, msg) });
       }
       const msg = postMemberMessage(session, { kind: 'voice', audioPath: stored.path });

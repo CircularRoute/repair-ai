@@ -254,3 +254,16 @@ the parent folder; no Render API keys.
     transcripts, with the same explanation instead; (c) the client-side
     recording warning and pre-send confirm use that plain English wording
     (English only, no Russian duplication, per the founder).
+
+26. 2026-08-05 - Garbled-transcript gate (from live incidents: noise notes
+    transcribed as Arabic script and German words, Otto then telling Zaur
+    "I don't understand, it's in Swedish"): members speak en/ru/az only,
+    so a voice transcript in a foreign script (Arabic, Hebrew, CJK, Kana,
+    Hangul) or judged by a cheap check to be another language or gibberish
+    is transcription garbage by definition. Such notes are kept for the
+    admin (pipelineStatus 'garbled', correctable) but are never
+    classified, embedded, translated, or shown to Otto as normal messages;
+    instead Otto posts the same deterministic mic explanation as for
+    silent notes (rulings 25-26 share it, deduped so a repeatedly broken
+    mic cannot make him spam). Otto never reasons about, quotes, or names
+    the language of garbage.
