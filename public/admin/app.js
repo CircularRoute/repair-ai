@@ -324,6 +324,92 @@ async function loadTaxonomy() {
   }
 }
 
+// --- Bob chat ---
+function addBobMsg(role, text, pending = false) {
+  const box = document.getElementById('bob-chat');
+  const div = el('div', `bob-msg ${role}${pending ? ' pending' : ''}`, text);
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  return div;
+}
+async function loadBobChat() {
+  const data = await api('/api/admin/bob-chat');
+  const box = document.getElementById('bob-chat');
+  box.innerHTML = '';
+  if (!data.messages.length) addBobMsg('bob', 'Ask me anything about what the group has said so far. I cite my sources.');
+  for (const m of data.messages) addBobMsg(m.role, m.content);
+}
+async function sendToBob() {
+  const input = document.getElementById('bob-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addBobMsg('admin', text);
+  const pending = addBobMsg('bob', 'Thinking...', true);
+  const data = await api('/api/admin/bob-chat', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }),
+  });
+  pending.remove();
+  addBobMsg('bob', data.reply || data.error || 'Something went wrong.');
+}
+document.getElementById('bob-send').addEventListener('click', sendToBob);
+document.getElementById('bob-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendToBob(); });
+
+// --- Living documents ---
+async function loadDocs() {
+  const data = await api('/api/admin/documents');
+  const withVersions = data.documents.filter((d) => d.version > 0).length;
+  document.getElementById('docs-mini').textContent = `${withVersions} of ${data.documents.length} generated`;
+  const list = document.getElementById('docs-list');
+  list.innerHTML = '';
+  for (const d of data.documents) {
+    const item = el('div', 'corpus-item');
+    const head = el('div', 'row');
+    head.appendChild(el('strong', null, d.type));
+    head.appendChild(el('span', 'muted small', d.version ? `v${d.version} · ${new Date(d.at).toLocaleString()}` : 'not generated yet'));
+    if (d.version) {
+      const viewBtn = el('button', 'ghost', 'View');
+      viewBtn.addEventListener('click', async () => {
+        const doc = await api(`/api/admin/documents/${encodeURIComponent(d.type)}`);
+        const view = document.getElementById('doc-view');
+        view.hidden = false;
+        view.textContent = `${doc.type} v${doc.version} (${new Date(doc.at).toLocaleString()})\n\n${doc.content}`;
+        view.scrollIntoView({ behavior: 'smooth' });
+      });
+      head.appendChild(viewBtn);
+    }
+    const runBtn = el('button', 'ghost', d.version ? 'Re-run' : 'Generate');
+    runBtn.addEventListener('click', async () => {
+      document.getElementById('docs-status').textContent = `Generating ${d.type}...`;
+      const r = await api('/api/admin/documents/run', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: d.type }),
+      });
+      document.getElementById('docs-status').textContent = r.error || 'Done';
+      loadDocs();
+    });
+    head.appendChild(runBtn);
+    item.appendChild(head);
+    list.appendChild(item);
+  }
+}
+document.getElementById('docs-run-all').addEventListener('click', async () => {
+  document.getElementById('docs-status').textContent = 'Running full synthesis, this takes a few minutes...';
+  const r = await api('/api/admin/documents/run', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'all' }),
+  });
+  document.getElementById('docs-status').textContent = r.error || 'Full synthesis complete';
+  loadDocs();
+});
+document.getElementById('docs-run-digest').addEventListener('click', async () => {
+  document.getElementById('docs-status').textContent = 'Running digest...';
+  const r = await api('/api/admin/documents/run', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'digest' }),
+  });
+  document.getElementById('docs-status').textContent = r.error || (r.ran ? 'Digest written' : 'Nothing new in the last 24h');
+  loadDocs();
+});
+document.getElementById('docs-details').addEventListener('toggle', loadDocs);
+
 // --- Agent controls ---
 async function loadAgentSettings() {
   const s = await api('/api/admin/agent-settings');
@@ -332,6 +418,7 @@ async function loadAgentSettings() {
   document.getElementById('otto-proactive').value = s.ottoProactivePerDay;
   const langs = s.ottoVoiceLangs.split(',');
   for (const cb of document.querySelectorAll('.otto-voice')) cb.checked = langs.includes(cb.value);
+  document.getElementById('bob-fable').checked = s.bobFable;
   document.getElementById('agent-mini').textContent = s.ottoMuted ? 'Otto MUTED' : `cap ${s.ottoCap}, ${s.ottoProactivePerDay}/day`;
 }
 document.getElementById('agent-save').addEventListener('click', async () => {
@@ -342,6 +429,7 @@ document.getElementById('agent-save').addEventListener('click', async () => {
       ottoCap: Number(document.getElementById('otto-cap').value),
       ottoProactivePerDay: Number(document.getElementById('otto-proactive').value),
       ottoVoiceLangs: [...document.querySelectorAll('.otto-voice:checked')].map((c) => c.value).join(','),
+      bobFable: document.getElementById('bob-fable').checked,
     }),
   });
   document.getElementById('agent-status').textContent = 'Saved';
@@ -356,7 +444,7 @@ async function init() {
   document.getElementById('whoami').textContent = meData.name;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/admin/sw.js');
   document.getElementById('corpus-details').addEventListener('toggle', loadCorpus);
-  await Promise.all([loadSpend(), loadMembers(), loadTaxonomy(), loadAgentSettings()]);
+  await Promise.all([loadSpend(), loadMembers(), loadTaxonomy(), loadAgentSettings(), loadBobChat(), loadDocs()]);
   setInterval(loadSpend, 30000);
   setInterval(loadCorpus, 30000);
 }

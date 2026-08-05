@@ -34,6 +34,10 @@ import {
   canIntervene, recordIntervention, memberPrefersVoice, generateReply, generateIntervention,
 } from './lib/otto-engine.mjs';
 import { tts } from './lib/voice.mjs';
+import {
+  DOCUMENT_TYPES, getDocuments, getDocument, generateDocument, weeklySynthesis,
+  nightlyDigest, maybeEventUpdate, bobChat, bobChatHistory, maybeRunBobSchedules,
+} from './lib/bob.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const { path: envPath } = loadEnv();
@@ -736,6 +740,9 @@ const server = createServer(async (req, res) => {
       if (!requireAdmin(req, res)) return;
       try {
         const result = await runExtraction(db, { onBlock });
+        // Event trigger (spec 7b): themes crossing the threshold refresh the
+        // Opportunity Register without waiting for the weekly run.
+        maybeEventUpdate(db, { onBlock }).catch(() => {});
         return sendJson(res, 200, result);
       } catch (err) {
         if (err.code === 'SPEND_BLOCKED') return sendJson(res, 409, { error: 'spend ceiling reached; unblock first' });
@@ -763,6 +770,58 @@ const server = createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true, status });
     }
 
+    // ---------- Phase 4: Bob ----------
+    if (path === '/api/admin/bob-chat' && req.method === 'GET') {
+      if (!requireAdmin(req, res)) return;
+      return sendJson(res, 200, { messages: bobChatHistory(db) });
+    }
+    if (path === '/api/admin/bob-chat' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const body = await readJsonBody(req);
+      const text = String(body.text || '').trim();
+      if (!text) return sendJson(res, 400, { error: 'empty message' });
+      try {
+        const reply = await bobChat(db, text, { onBlock });
+        return sendJson(res, 200, { reply });
+      } catch (err) {
+        if (err.code === 'SPEND_BLOCKED') return sendJson(res, 409, { error: 'spend ceiling reached; unblock first' });
+        logEvent(db, 'bob.chat_error', { error: err.message });
+        return sendJson(res, 500, { error: err.message });
+      }
+    }
+
+    if (path === '/api/admin/documents' && req.method === 'GET') {
+      if (!requireAdmin(req, res)) return;
+      return sendJson(res, 200, { documents: getDocuments(db) });
+    }
+    if (path.startsWith('/api/admin/documents/') && req.method === 'GET') {
+      if (!requireAdmin(req, res)) return;
+      const doc = getDocument(db, decodeURIComponent(path.split('/').pop()));
+      if (!doc) return sendJson(res, 404, { error: 'no versions yet' });
+      return sendJson(res, 200, { type: doc.type, version: doc.version, at: doc.at, createdBy: doc.createdBy, content: doc.content, provenance: doc.provenance, versions: doc.versions });
+    }
+    if (path === '/api/admin/documents/run' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const body = await readJsonBody(req);
+      try {
+        if (body.type === 'all') {
+          const results = await weeklySynthesis(db, { onBlock });
+          return sendJson(res, 200, { ok: true, results });
+        }
+        if (body.type === 'digest') {
+          const digest = await nightlyDigest(db, { onBlock });
+          return sendJson(res, 200, { ok: true, ran: Boolean(digest) });
+        }
+        if (!DOCUMENT_TYPES.includes(body.type)) return sendJson(res, 400, { error: 'unknown document type' });
+        const result = await generateDocument(db, body.type, { onBlock });
+        return sendJson(res, 200, { ok: true, version: result.version });
+      } catch (err) {
+        if (err.code === 'SPEND_BLOCKED') return sendJson(res, 409, { error: 'spend ceiling reached; unblock first' });
+        logEvent(db, 'bob.run_error', { error: err.message });
+        return sendJson(res, 500, { error: err.message });
+      }
+    }
+
     // ---------- Agent controls (Phase 3) ----------
     if (path === '/api/admin/agent-settings' && req.method === 'GET') {
       if (!requireAdmin(req, res)) return;
@@ -770,6 +829,7 @@ const server = createServer(async (req, res) => {
       return sendJson(res, 200, {
         ottoMuted: s.muted, ottoCap: s.cap, ottoProactivePerDay: s.proactivePerDay,
         ottoVoiceLangs: s.voiceLangs.join(','),
+        bobFable: getSetting(db, 'bobFable', '0') === '1',
       });
     }
     if (path === '/api/admin/agent-settings' && req.method === 'POST') {
@@ -781,6 +841,7 @@ const server = createServer(async (req, res) => {
       if (typeof body.ottoVoiceLangs === 'string') {
         setSetting(db, 'ottoVoiceLangs', body.ottoVoiceLangs.split(',').map((s) => s.trim()).filter((l) => ['en', 'ru', 'az'].includes(l)).join(','));
       }
+      if (body.bobFable !== undefined) setSetting(db, 'bobFable', body.bobFable ? '1' : '0');
       logEvent(db, 'otto.settings_changed', null);
       return sendJson(res, 200, { ok: true });
     }
@@ -845,9 +906,18 @@ server.listen(PORT, () => {
 });
 
 // Daily insight extraction: checked hourly, runs when there is new material
-// and the previous run is old enough (lib/insights.mjs).
+// and the previous run is old enough (lib/insights.mjs). A completed run can
+// event-trigger Bob's Opportunity Register update.
+setInterval(async () => {
+  try {
+    const ran = await maybeRunScheduled(db, { onBlock });
+    if (ran) await maybeEventUpdate(db, { onBlock });
+  } catch {}
+}, 60 * 60 * 1000);
+
+// Bob's clocks: nightly digest around 03:00 UTC, weekly deep synthesis.
 setInterval(() => {
-  maybeRunScheduled(db, { onBlock }).catch(() => {});
+  maybeRunBobSchedules(db, { onBlock }).catch(() => {});
 }, 60 * 60 * 1000);
 
 // Otto's proactive interventions: checked every 5 minutes, gated by the daily

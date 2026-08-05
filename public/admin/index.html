@@ -101,10 +101,27 @@
       </details>
     </section>
 
-    <section class="card">
-      <details>
-        <summary class="card-summary"><h2>Bob</h2><span class="muted small">Phase 4</span></summary>
-        <p class="muted">Real-time chat with Bob lands here in Phase 4.</p>
+    <section class="card span2">
+      <details id="bob-details" open>
+        <summary class="card-summary"><h2>Bob</h2><span class="muted small">analysis and build agent</span></summary>
+        <div id="bob-chat" class="bob-chat"></div>
+        <div class="row">
+          <input id="bob-input" placeholder="Ask Bob anything about the corpus">
+          <button id="bob-send">Ask</button>
+        </div>
+      </details>
+    </section>
+
+    <section class="card span2">
+      <details id="docs-details">
+        <summary class="card-summary"><h2>Living documents</h2><span id="docs-mini" class="muted small"></span></summary>
+        <div class="row">
+          <button id="docs-run-all" class="ghost">Run full synthesis (all five + memo)</button>
+          <button id="docs-run-digest" class="ghost">Run nightly digest now</button>
+          <span id="docs-status" class="muted small"></span>
+        </div>
+        <div id="docs-list"></div>
+        <pre id="doc-view" class="doc-view" hidden></pre>
       </details>
     </section>
 
@@ -133,6 +150,7 @@
           <label class="check"><input type="checkbox" class="otto-voice" value="ru"> RU</label>
           <label class="check"><input type="checkbox" class="otto-voice" value="az"> AZ</label>
         </div>
+        <div class="row"><label class="check"><input type="checkbox" id="bob-fable"> Use Fable 5 for Bob's weekly deep synthesis</label></div>
         <div class="row"><button id="agent-save">Save</button><span id="agent-status" class="muted small"></span></div>
       </details>
     </section>

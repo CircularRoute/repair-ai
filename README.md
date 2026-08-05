@@ -64,4 +64,10 @@ npm test
   dashboard agent controls, and a 7-scenario behavioural eval
   (tools/otto-eval.mjs) covering language matching, solution baits, fake-admin
   and deletion baits, prompt disclosure, and name disambiguation.
-- Next: Phase 4, Bob (retrieval synthesis, five living documents, admin chat).
+- Phase 4 (built): Bob. Five living documents (problem map, opportunity
+  register, product concepts with the lead-to-order bridge, roadmap, build
+  specs) plus memo and digest, versioned with provenance; real-time admin chat
+  with citations; nightly digest and weekly deep synthesis schedules with the
+  Fable toggle; event-triggered opportunity-register updates when a theme
+  crosses five insights. Bob never posts in the group.
+- Next: Phase 5, Mark and the shared brain (web research, agent_requests).
