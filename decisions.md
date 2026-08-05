@@ -119,7 +119,9 @@ the parent folder; no Render API keys.
     (typed into the app, which keeps the session inside the installed PWA) plus a
     fallback sign-in link. Sessions last a year and survive until sign-out;
     signing out requires a fresh emailed code. This is an EXPLICIT founder-approved
-    exception to hard rule 3 (no external sends), STRICTLY limited to transactional
-    sign-in emails via Brevo; nothing else is ever emailed. Invite links remain as
+    exception to hard rule 3 (no external sends), STRICTLY limited to two
+    transactional email types via Brevo: sign-in code emails, and the one-time
+    invitation email sent when the admin adds a member (telling them how to sign
+    in). Nothing else is ever emailed. Invite links remain as
     a secondary path. Replaces the fragile single-use-link-only flow that broke
     when a member installed the PWA from the join page.

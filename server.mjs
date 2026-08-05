@@ -15,7 +15,7 @@ import {
   mintMagicLink, consumeMagicLink, mintLoginCode, consumeLoginCode,
   sessionCookieHeader, clearCookieHeader, readCookies,
 } from './lib/auth.mjs';
-import { sendLoginCode, emailConfigured } from './lib/email.mjs';
+import { sendLoginCode, sendWelcome, emailConfigured } from './lib/email.mjs';
 import {
   validateAttachment, storeFile, MAX_FILE_BYTES, MAX_AUDIO_BYTES, ALLOWED_EXTENSIONS,
 } from './lib/files.mjs';
@@ -532,7 +532,19 @@ const server = createServer(async (req, res) => {
         .run(memberId, name, 'partner', main, languages, email || null, new Date().toISOString());
       const link = mintMagicLink(db, memberId, 'invite', new Date(), 7 * 24 * 60);
       logEvent(db, 'invite.created', { memberId, name, hasEmail: Boolean(email) });
-      return sendJson(res, 200, { url: `${url.origin}/join/${link.token}`, memberId, email: email || null, expiresAt: link.expiresAt });
+      // With an email on file, the invitation email goes out immediately
+      // (ruling 13); the link stays as a backup for members without email.
+      let emailSent = false;
+      if (email && emailConfigured()) {
+        try {
+          await sendWelcome({ to: email, name, language: main, url: url.origin });
+          emailSent = true;
+          logEvent(db, 'invite.email_sent', { memberId });
+        } catch (err) {
+          logEvent(db, 'invite.email_failed', { memberId, error: err.message });
+        }
+      }
+      return sendJson(res, 200, { url: `${url.origin}/join/${link.token}`, memberId, email: email || null, emailSent, expiresAt: link.expiresAt });
     }
 
     // Remove (retire) a member: never-delete rule, so data stays; the member

@@ -111,3 +111,18 @@ test('login email templates exist per language with code and link', async () => 
     assert.equal(captured.text.includes(String.fromCharCode(0x2014)), false, language);
   }
 });
+
+test('welcome email templates exist per language, name the founder, carry the URL', async () => {
+  const { sendWelcome } = await import('../lib/email.mjs');
+  for (const language of ['en', 'ru', 'az']) {
+    let captured = null;
+    await sendWelcome(
+      { to: 'x@y.z', name: 'Elvin', language, url: 'https://otto.repairnow.app' },
+      async (payload) => { captured = payload; return true; }
+    );
+    assert.ok(captured.subject.toLowerCase().includes('rashad'), language);
+    assert.ok(captured.text.includes('Elvin'), language);
+    assert.ok(captured.text.includes('https://otto.repairnow.app'), language);
+    assert.equal(captured.text.includes(String.fromCharCode(0x2014)), false, language);
+  }
+});

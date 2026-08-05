@@ -88,33 +88,39 @@ document.getElementById('invite-create').addEventListener('click', async () => {
   const out = document.getElementById('invite-result');
   out.hidden = false;
   out.innerHTML = '';
-  if (data.email) {
-    out.appendChild(el('div', null, `${name} can now sign in with ${data.email} at otto.repairnow.app.`));
-  }
-  out.appendChild(el('div', 'muted', `Backup invite link for ${name} (valid 7 days, single use):`));
-  out.appendChild(el('div', 'invite-url', data.url));
-  const actions = el('div', 'row');
-  const copyBtn = el('button', null, 'Copy link');
-  copyBtn.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(data.url);
-    } catch {
-      // Clipboard API can be unavailable; fall back to a selectable prompt.
-      window.prompt('Copy the link:', data.url);
+  if (data.emailSent) {
+    // Email members get the invitation email; no link handling needed.
+    out.appendChild(el('div', null, `Invitation email sent to ${data.email}. ${name} signs in there with a 6-digit code.`));
+  } else {
+    if (data.email) {
+      out.appendChild(el('div', 'error', 'The invitation email could not be sent; share the link below instead.'));
     }
-    copyBtn.textContent = 'Copied';
-    setTimeout(() => { copyBtn.textContent = 'Copy link'; }, 2000);
-  });
-  actions.appendChild(copyBtn);
-  if (navigator.share) {
-    const shareBtn = el('button', 'ghost', 'Share');
-    shareBtn.addEventListener('click', () => {
-      navigator.share({ title: 'Repair AI invite', url: data.url }).catch(() => {});
+    out.appendChild(el('div', 'muted', `Invite link for ${name} (valid 7 days, single use):`));
+    out.appendChild(el('div', 'invite-url', data.url));
+    const actions = el('div', 'row');
+    const copyBtn = el('button', null, 'Copy link');
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(data.url);
+      } catch {
+        // Clipboard API can be unavailable; fall back to a selectable prompt.
+        window.prompt('Copy the link:', data.url);
+      }
+      copyBtn.textContent = 'Copied';
+      setTimeout(() => { copyBtn.textContent = 'Copy link'; }, 2000);
     });
-    actions.appendChild(shareBtn);
+    actions.appendChild(copyBtn);
+    if (navigator.share) {
+      const shareBtn = el('button', 'ghost', 'Share');
+      shareBtn.addEventListener('click', () => {
+        navigator.share({ title: 'Repair AI invite', url: data.url }).catch(() => {});
+      });
+      actions.appendChild(shareBtn);
+    }
+    out.appendChild(actions);
   }
-  out.appendChild(actions);
   document.getElementById('invite-name').value = '';
+  document.getElementById('invite-email').value = '';
   loadMembers();
 });
 
