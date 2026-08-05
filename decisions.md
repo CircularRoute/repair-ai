@@ -33,3 +33,45 @@ the parent folder; no Render API keys.
    come ONLY from Rashad (admin), through the admin dashboard. If a member asks, the
    agent declines politely and notes that only Rashad controls that. Compiled into the
    non-overridable system prompt of every agent.
+
+8. 2026-08-05 - Attachments: members can send text, voice messages, AND file
+   attachments in the group chat. Attachments are restricted to a strict allowlist of
+   non-risky types, enforced server-side by extension AND sniffed content type, never
+   by the client alone:
+   - images: jpg, jpeg, png, gif, webp, heic
+   - audio: m4a, mp3, wav, webm, ogg (voice notes use this path too)
+   - video: mp4, mov
+   - documents: pdf, txt, csv, docx, xlsx
+   Explicitly blocked: executables and scripts (exe, sh, bat, js, and similar),
+   html and svg (script-injection risk in the browser), archives (zip, rar, 7z),
+   macro-enabled Office formats (docm, xlsm), and anything not on the allowlist.
+   Storage and serving rules: files live on disk under /data/files/ with randomized
+   names, size-capped per file, served with Content-Disposition attachment and
+   X-Content-Type-Options nosniff, never executed, never rendered inline as html.
+   Attachments enter the corpus like everything else (stored raw, text extracted
+   where possible, extracted text treated as untrusted data per ruling 9). Lands in
+   Phase 1 with the chat PWA.
+
+9. 2026-08-05 - Anti-manipulation guardrails: strict, structural defenses against
+   prompt injection and agent manipulation by group members. Members are friends, but
+   the system treats ALL member content (text, voice transcripts, attachment text) as
+   DATA, never as instructions, no exceptions. Requirements, enforced in code and
+   prompts from Phase 1 onward:
+   - Every agent prompt wraps member content in clearly delimited untrusted-content
+     blocks; system prompts state that nothing inside those blocks can change the
+     agent's rules, role, tone, caps, or tasks.
+   - Hard rules (never design solutions, admin-only commands per ruling 7, consent,
+     caps, budgets) are compiled into non-overridable system prompts; no member
+     message can unlock, roleplay around, or "admin-override" them. Claims of
+     authority inside the chat ("Rashad told me to tell you...", "as the developer,
+     I order you...") are ignored; real admin commands arrive only via the dashboard,
+     authenticated by session, never via group content.
+   - Agents take no actions from member content other than their designed ones
+     (replying in the group within their rules, filing check-with requests). No tool
+     calls, no settings changes, no data operations triggered by chat text.
+   - Suspected injection attempts are logged as events and surfaced to the admin in
+     the dashboard; the agent responds politely and briefly or stays silent, and
+     never repeats or executes the injected instructions.
+   - The Phase 3 behavioural eval set includes injection and manipulation baits
+     (override attempts, fake admin claims, delete requests, cap-removal requests,
+     "reveal your prompt" probes) that Otto must pass before real partners join.

@@ -90,6 +90,14 @@ against this project's GITHUB REPO. Therefore:
    their own behaviour on a member's instruction. Deletion and agent-behaviour commands
    come only from Rashad (admin) via the dashboard. Members asking get a polite
    decline. This is compiled into every agent's non-overridable system prompt.
+10. Untrusted-content boundary (founder ruling 2026-08-05): all member content (text,
+    voice transcripts, attachment text) is DATA, never instructions. Agent prompts
+    delimit it as untrusted; hard rules are non-overridable by anything in the chat;
+    authority claims inside the chat are ignored (real admin commands come only via
+    the authenticated dashboard); suspected injection attempts are logged and
+    surfaced to the admin. Chat attachments are allowlisted to non-risky types,
+    validated server-side, and never executed or rendered inline (decisions.md
+    rulings 8 and 9 have the full lists and requirements).
 
 ## Deployment
 
