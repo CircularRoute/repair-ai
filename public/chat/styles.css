@@ -72,6 +72,9 @@ body {
 .msg.system { align-self: center; max-width: 92%; }
 .msg.system .bubble { background: transparent; border-style: dashed; color: var(--muted); font-size: 0.85rem; text-align: center; }
 .msg .meta { font-size: 0.72rem; color: var(--muted); margin: 2px 6px; }
+.msg .bubble { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.msg.deleted .bubble { border-style: dashed; }
+.deleted-note { color: var(--muted); font-style: italic; font-size: 0.9rem; }
 .msg audio { width: 230px; max-width: 100%; margin-top: 4px; }
 .msg .file-link { color: var(--accent); text-decoration: none; font-weight: 600; }
 .msg .file-size { color: var(--muted); font-size: 0.8rem; }

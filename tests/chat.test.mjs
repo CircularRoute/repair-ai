@@ -83,3 +83,16 @@ test('retiring a member kills their sessions and unused invites, keeps messages'
   assert.equal(db.prepare("SELECT COUNT(*) AS c FROM messages WHERE senderId = 'p_r'").get().c, 1);
   assert.equal(db.prepare("SELECT status FROM members WHERE id = 'p_r'").get().status, 'retired');
 });
+
+test('deleted messages render as placeholder and hide content and media', () => {
+  const db = freshDb();
+  const m = insertMessage(db, { senderId: 'admin', senderKind: 'member', kind: 'voice', audioPath: '/data/audio/x.m4a' });
+  db.prepare("UPDATE messages SET status = 'deleted', deletedAt = ? WHERE id = ?").run(new Date().toISOString(), m.id);
+  const view = messageView(db, db.prepare('SELECT * FROM messages WHERE id = ?').get(m.id));
+  assert.equal(view.deleted, true);
+  assert.equal(view.text, null);
+  assert.equal(view.hasAudio, false);
+  // Content is retained in the database (never-delete rule).
+  const row = db.prepare('SELECT * FROM messages WHERE id = ?').get(m.id);
+  assert.equal(row.audioPath, '/data/audio/x.m4a');
+});

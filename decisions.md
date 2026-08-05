@@ -103,3 +103,12 @@ the parent folder; no Render API keys.
     single-language members; multilingual members auto-detect, and the reinforced
     AZ path still runs whenever a note turns out to be Azerbaijani for anyone whose
     languages include AZ.
+
+12. 2026-08-05 - Message deletion, WhatsApp-style: a member can delete their OWN
+    message after sending (mistakes happen); it disappears for everyone and the
+    chat shows a "This message was deleted" placeholder, like WhatsApp. Rashad
+    (admin) can delete any message. Under the never-delete rule this is a
+    redaction: the original content is retained in the database, visible only in
+    the admin corpus browser (marked deleted), and EXCLUDED from agent retrieval,
+    insights, and synthesis, respecting the member's intent. Media of deleted
+    messages stops being served. No time limit on deletion for now.

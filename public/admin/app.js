@@ -124,10 +124,13 @@ async function loadCorpus() {
     head.appendChild(el('strong', null, m.senderName));
     head.appendChild(el('span', 'muted', `  ${new Date(m.ts).toLocaleString()} · ${m.kind}` +
       (m.language ? ` · ${m.language}` : '') +
+      (m.status === 'deleted' ? ' · DELETED by sender (hidden from chat and agents)' : '') +
       (m.pipelineStatus !== 'done' ? ` · pipeline: ${m.pipelineStatus}` : '')));
     item.appendChild(head);
 
-    if (m.kind === 'voice') {
+    if (m.status === 'deleted') {
+      item.appendChild(el('div', 'muted small', `Original: ${m.originalText || m.transcript || m.fileName || '(media)'}`));
+    } else if (m.kind === 'voice') {
       const audio = document.createElement('audio');
       audio.controls = true;
       audio.preload = 'none';

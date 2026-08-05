@@ -273,10 +273,33 @@ const server = createServer(async (req, res) => {
       const session = requireMember(req, res);
       if (!session) return;
       const after = url.searchParams.get('after');
+      // Deleted messages are included as placeholders (ruling 12).
       const rows = after
-        ? db.prepare("SELECT * FROM messages WHERE status = 'active' AND ts > ? ORDER BY ts LIMIT 200").all(after)
-        : db.prepare("SELECT * FROM messages WHERE status = 'active' ORDER BY ts DESC LIMIT 100").all().reverse();
+        ? db.prepare("SELECT * FROM messages WHERE status IN ('active','deleted') AND ts > ? ORDER BY ts LIMIT 200").all(after)
+        : db.prepare("SELECT * FROM messages WHERE status IN ('active','deleted') ORDER BY ts DESC LIMIT 100").all().reverse();
       return sendJson(res, 200, { messages: rows.map((m) => messageView(db, m)) });
+    }
+
+    // WhatsApp-style delete (ruling 12): a member deletes their own message;
+    // the admin can delete any. Content is retained (never-delete rule) but
+    // leaves the chat for everyone and is excluded from agent retrieval.
+    if (path === '/api/chat/message/delete' && req.method === 'POST') {
+      const session = requireMember(req, res);
+      if (!session) return;
+      const body = await readJsonBody(req);
+      const msg = db.prepare('SELECT * FROM messages WHERE id = ?').get(body.messageId || '');
+      if (!msg || msg.status === 'retired') return sendJson(res, 404, { error: 'message not found' });
+      const isOwn = msg.senderKind === 'member' && msg.senderId === session.memberId;
+      if (!isOwn && session.role !== 'admin') {
+        return sendJson(res, 403, { error: 'you can only delete your own messages' });
+      }
+      if (msg.status !== 'deleted') {
+        db.prepare("UPDATE messages SET status = 'deleted', deletedAt = ? WHERE id = ?")
+          .run(new Date().toISOString(), msg.id);
+        logEvent(db, 'message.deleted', { messageId: msg.id, by: session.memberId });
+        broadcast({ type: 'message', message: messageView(db, db.prepare('SELECT * FROM messages WHERE id = ?').get(msg.id)) });
+      }
+      return sendJson(res, 200, { ok: true });
     }
 
     if (path === '/api/chat/stream' && req.method === 'GET') {
@@ -357,7 +380,7 @@ const server = createServer(async (req, res) => {
       const session = requireMember(req, res);
       if (!session) return;
       const msg = db.prepare('SELECT * FROM messages WHERE id = ?').get(path.split('/').pop());
-      if (!msg) return send(res, 404, 'Not found');
+      if (!msg || msg.status === 'deleted') return send(res, 404, 'Not found');
       if (msg.audioPath) {
         const ext = msg.audioPath.split('.').pop();
         return serveStoredFile(req, res, msg.audioPath, { mime: AUDIO_MIME[ext] || 'audio/mpeg', inlineAudio: true });
@@ -436,8 +459,10 @@ const server = createServer(async (req, res) => {
     if (path === '/api/admin/messages' && req.method === 'GET') {
       if (!requireAdmin(req, res)) return;
       const rows = db.prepare("SELECT * FROM messages ORDER BY ts DESC LIMIT 200").all();
+      // The admin corpus view keeps original content even for deleted messages
+      // (never-delete rule); the deleted flag marks them excluded from agents.
       return sendJson(res, 200, {
-        messages: rows.map((m) => ({ ...messageView(db, m), transcript: m.transcript, transcriptAlt: m.transcriptAlt, transcriptConfidence: m.transcriptConfidence, language: m.language, englishText: m.englishText, pipelineStatus: m.pipelineStatus, pipelineError: m.pipelineError })),
+        messages: rows.map((m) => ({ ...messageView(db, m), originalText: m.originalText, status: m.status, deletedAt: m.deletedAt, transcript: m.transcript, transcriptAlt: m.transcriptAlt, transcriptConfidence: m.transcriptConfidence, language: m.language, englishText: m.englishText, pipelineStatus: m.pipelineStatus, pipelineError: m.pipelineError })),
       });
     }
 

@@ -21,18 +21,37 @@ function fmtSize(bytes) {
 }
 
 function renderMessage(m) {
-  if (document.getElementById('msg-' + m.id)) return;
+  const existing = document.getElementById('msg-' + m.id);
+  if (existing) {
+    // Only a deletion changes an already-rendered message.
+    if (m.deleted && !existing.classList.contains('deleted')) {
+      existing.replaceWith(buildMessage(m));
+    }
+    return;
+  }
+  messagesEl.appendChild(buildMessage(m));
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  if (m.ts > (lastTs || '')) lastTs = m.ts;
+}
+
+function buildMessage(m) {
   const div = document.createElement('div');
   div.id = 'msg-' + m.id;
   div.className = 'msg';
   if (m.senderKind === 'system') div.classList.add('system');
   else if (m.senderKind === 'agent') div.classList.add('agent');
   else if (me && m.senderId === me.memberId) div.classList.add('mine');
+  if (m.deleted) div.classList.add('deleted');
 
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
 
-  if (m.kind === 'voice') {
+  if (m.deleted) {
+    const ph = document.createElement('span');
+    ph.className = 'deleted-note';
+    ph.textContent = '\u{1F6AB} This message was deleted';
+    bubble.appendChild(ph);
+  } else if (m.kind === 'voice') {
     // Voice bubbles show only the player; transcripts live in the admin
     // corpus browser, not in the group chat.
     const audio = document.createElement('audio');
@@ -61,9 +80,35 @@ function renderMessage(m) {
     meta.textContent = `${m.senderName} · ${fmtTime(m.ts)}`;
     div.appendChild(meta);
   }
-  messagesEl.appendChild(div);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-  if (m.ts > (lastTs || '')) lastTs = m.ts;
+
+  // WhatsApp-style delete: long-press your own message (the admin can delete
+  // any member or Otto message).
+  const canDelete = !m.deleted && me &&
+    ((m.senderKind === 'member' && m.senderId === me.memberId) ||
+      (me.role === 'admin' && m.senderKind !== 'system'));
+  if (canDelete) attachLongPress(bubble, () => confirmDelete(m));
+  return div;
+}
+
+function attachLongPress(el2, handler) {
+  let timer = null;
+  const start = () => { timer = setTimeout(handler, 550); };
+  const cancel = () => { if (timer) clearTimeout(timer); timer = null; };
+  el2.addEventListener('touchstart', start, { passive: true });
+  el2.addEventListener('touchend', cancel);
+  el2.addEventListener('touchmove', cancel);
+  el2.addEventListener('touchcancel', cancel);
+  el2.addEventListener('contextmenu', (e) => { e.preventDefault(); handler(); });
+}
+
+async function confirmDelete(m) {
+  if (!confirm('Delete this message for everyone?')) return;
+  const res = await fetch('/api/chat/message/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messageId: m.id }),
+  });
+  if (res.ok) renderMessage({ ...m, deleted: true, text: null, hasAudio: false, fileName: null });
 }
 
 async function loadMessages() {
