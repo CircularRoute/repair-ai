@@ -244,6 +244,34 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
+// --- iOS keyboard and viewport handling ---
+// Keep the app exactly the size of the visual viewport: the composer stays
+// glued to the keyboard while typing and returns to the true bottom when the
+// keyboard closes or the phone rotates. iOS also leaves the page scrolled
+// after the keyboard opens; snapping scroll back fixes the floating gap.
+function syncViewport() {
+  const vv = window.visualViewport;
+  if (vv) {
+    document.body.style.height = vv.height + 'px';
+    window.scrollTo(0, 0);
+  }
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', syncViewport);
+  window.visualViewport.addEventListener('scroll', () => window.scrollTo(0, 0));
+}
+window.addEventListener('orientationchange', () => setTimeout(syncViewport, 300));
+
+// iOS does not dismiss the keyboard on taps outside the input; do it on any
+// touch in the message list or the header.
+for (const el of [messagesEl, document.querySelector('.chat-top')]) {
+  el.addEventListener('touchstart', () => {
+    if (document.activeElement === textInput) textInput.blur();
+  }, { passive: true });
+}
+textInput.addEventListener('blur', () => setTimeout(syncViewport, 100));
+
 // --- Boot ---
 async function init() {
   const res = await fetch('/api/me');

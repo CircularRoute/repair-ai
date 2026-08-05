@@ -19,11 +19,15 @@ body {
   font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   display: flex;
   flex-direction: column;
-  /* Pin the app to the viewport so only the message list scrolls, the composer
-     stays attached to the bottom, and rotation does not thrash the layout
-     (100dvh re-animates with iOS browser chrome; fixed inset does not). */
+  /* Pin the app to the viewport so only the message list scrolls and the
+     composer stays attached to the bottom. Height is kept in sync with the
+     visual viewport by app.js, which keeps the composer glued to the keyboard
+     and to the true bottom after the keyboard closes or the phone rotates. */
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
   overflow: hidden;
   overscroll-behavior: none;
 }
