@@ -253,8 +253,22 @@ async function setupPush() {
   const banner = document.getElementById('push-banner');
   const bannerText = document.getElementById('push-banner-text');
   const enableBtn = document.getElementById('push-enable');
-  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPhone|iPad|iPod/.test(ua);
+  const inApp = /GSA\/|FBAN|FB_IAB|Instagram|Line\/|Telegram|; wv\)|WebView/i.test(ua);
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+
+  // Inside an email or social app browser nothing can be installed; steer to a
+  // real browser before anything else.
+  if (inApp && !standalone) {
+    bannerText.textContent =
+      'You are inside an email or social app. Open otto.repairnow.app in ' +
+      (isIOS ? 'Safari' : 'Chrome') +
+      ' to install Repair AI and get notifications.';
+    enableBtn.hidden = true;
+    banner.hidden = false;
+    return;
+  }
 
   if (!('serviceWorker' in navigator)) return;
   const reg = await navigator.serviceWorker.register('/chat/sw.js');

@@ -99,6 +99,13 @@ button.ghost {
 .login-card form { display: flex; flex-direction: column; gap: 12px; }
 .login-card #step-email p, .login-card #step-code p { margin-bottom: 10px; }
 .login-card #resend { margin-top: 10px; }
+.inapp-warn {
+  display: flex; flex-direction: column; gap: 8px;
+  background: #33270f; border: 1px solid #b9862f; border-radius: 12px;
+  padding: 12px 14px; font-size: 0.9rem;
+}
+.inapp-warn button { align-self: flex-start; }
+
 .admin-details { border-top: 1px solid var(--line); padding-top: 12px; }
 .admin-details summary { cursor: pointer; }
 .admin-details form { margin-top: 10px; }

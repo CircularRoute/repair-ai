@@ -17,6 +17,15 @@
         <h1>Repair AI</h1>
       </div>
 
+      <div id="inapp-warn" class="inapp-warn" hidden>
+        <strong>Open this page in your real browser.</strong>
+        <span id="inapp-how">You are inside an email or social app right now, so the
+        Repair AI app cannot be installed from here. Tap the menu in the corner and
+        choose "Open in browser", or type <strong>otto.repairnow.app</strong> into
+        Safari (iPhone) or Chrome (Android).</span>
+        <button id="inapp-copy" class="ghost">Copy address</button>
+      </div>
+
       <div id="step-email">
         <p class="muted">Enter your email and we will send you a 6-digit sign-in code.</p>
         <form id="email-form">
@@ -47,6 +56,18 @@
     </div>
   </main>
   <script>
+    // In-app browsers (Gmail, the Google app, Instagram, Facebook, Telegram)
+    // cannot install PWAs and keep logins in their own sandbox.
+    const ua = navigator.userAgent || '';
+    const inApp = /GSA\/|FBAN|FB_IAB|Instagram|Line\/|Telegram|; wv\)|WebView/i.test(ua);
+    if (inApp) {
+      document.getElementById('inapp-warn').hidden = false;
+      document.getElementById('inapp-copy').addEventListener('click', async (e) => {
+        try { await navigator.clipboard.writeText('https://otto.repairnow.app'); } catch {}
+        e.target.textContent = 'Copied';
+      });
+    }
+
     const err = document.getElementById('login-error');
     const emailInput = document.getElementById('email');
 
