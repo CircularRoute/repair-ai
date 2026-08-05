@@ -23,6 +23,10 @@ document.getElementById('logout').addEventListener('click', async () => {
 async function loadSpend() {
   const s = await api('/api/admin/spend');
   document.getElementById('spend-today').textContent = `$${s.today.toFixed(2)}`;
+  document.getElementById('spend-mini').textContent =
+    `$${s.today.toFixed(2)} today` + (s.blocked ? ' · BLOCKED' : '');
+  // A tripped ceiling must be visible: force the section open.
+  if (s.blocked) document.getElementById('spend-details').open = true;
   const ceiling = document.getElementById('ceiling-input');
   if (document.activeElement !== ceiling) ceiling.value = s.ceiling;
   document.getElementById('spend-blocked').hidden = !s.blocked;
@@ -50,6 +54,8 @@ async function loadMembers() {
   list.innerHTML = '';
   const active = data.members.filter((m) => m.status !== 'retired');
   const retired = data.members.filter((m) => m.status === 'retired');
+  document.getElementById('members-mini').textContent =
+    `${active.length} active, ${active.filter((m) => m.consentShownAt).length} joined`;
   for (const m of active) {
     const li = el('li', 'member-row');
     const info = el('span');

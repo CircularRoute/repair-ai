@@ -26,20 +26,23 @@
 
   <main class="grid">
     <section class="card span2">
-      <h2>Spend meter</h2>
-      <div id="spend-blocked" class="banner error-banner" hidden>
-        Daily ceiling reached. Agents are paused.
-        <button id="unblock-btn">Unblock</button>
-      </div>
-      <p><span id="spend-today" class="big">$0.00</span> <span class="muted">today of</span>
-        <input id="ceiling-input" type="number" min="1" step="1" class="inline-num"> <span class="muted">USD/day</span>
-        <button id="ceiling-save" class="ghost">Save</button></p>
-      <div id="spend-agents" class="muted small"></div>
+      <details id="spend-details">
+        <summary class="card-summary"><h2>Spend meter</h2><span id="spend-mini" class="muted small"></span></summary>
+        <div id="spend-blocked" class="banner error-banner" hidden>
+          Daily ceiling reached. Agents are paused.
+          <button id="unblock-btn">Unblock</button>
+        </div>
+        <p><span id="spend-today" class="big">$0.00</span> <span class="muted">today of</span>
+          <input id="ceiling-input" type="number" min="1" step="1" class="inline-num"> <span class="muted">USD/day</span>
+          <button id="ceiling-save" class="ghost">Save</button></p>
+        <div id="spend-agents" class="muted small"></div>
+      </details>
     </section>
 
     <section class="card">
-      <h2>Members</h2>
-      <ul id="member-list" class="plain-list"></ul>
+      <details id="members-details">
+        <summary class="card-summary"><h2>Members</h2><span id="members-mini" class="muted small"></span></summary>
+        <ul id="member-list" class="plain-list"></ul>
       <h3>Add a member</h3>
       <p class="muted small">With an email, the member gets an invitation email and signs
       in with a 6-digit code. Without one, you get a link to share yourself.</p>
@@ -60,6 +63,7 @@
         <button id="invite-create">Add member</button>
       </div>
       <p id="invite-result" class="small" hidden></p>
+      </details>
     </section>
 
     <section class="card span2">
@@ -72,21 +76,24 @@
     </section>
 
     <section class="card">
-      <h2>Bob</h2>
-      <p class="muted">Real-time chat with Bob lands here in Phase 4.</p>
-      <div class="placeholder">Phase 4</div>
+      <details>
+        <summary class="card-summary"><h2>Bob</h2><span class="muted small">Phase 4</span></summary>
+        <p class="muted">Real-time chat with Bob lands here in Phase 4.</p>
+      </details>
     </section>
 
     <section class="card">
-      <h2>Mark</h2>
-      <p class="muted">Market research documents land here in Phase 5.</p>
-      <div class="placeholder">Phase 5</div>
+      <details>
+        <summary class="card-summary"><h2>Mark</h2><span class="muted small">Phase 5</span></summary>
+        <p class="muted">Market research documents land here in Phase 5.</p>
+      </details>
     </section>
 
     <section class="card">
-      <h2>Agent controls</h2>
-      <p class="muted">Otto budgets and caps arrive in Phase 3.</p>
-      <div class="placeholder">Phase 3</div>
+      <details>
+        <summary class="card-summary"><h2>Agent controls</h2><span class="muted small">Phase 3</span></summary>
+        <p class="muted">Otto budgets and caps arrive in Phase 3.</p>
+      </details>
     </section>
   </main>
 

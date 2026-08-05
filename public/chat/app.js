@@ -19,6 +19,30 @@ function fmtSize(bytes) {
   return Math.round(bytes / 1024) + ' KB';
 }
 
+// WhatsApp-style date separators: Today, Yesterday, then full dates.
+let lastDayKey = null;
+function dayLabel(ts) {
+  const d = new Date(ts);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const same = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  if (same(d, today)) return 'Today';
+  if (same(d, yesterday)) return 'Yesterday';
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function ensureDayDivider(ts) {
+  const d = new Date(ts);
+  const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  if (key === lastDayKey) return;
+  lastDayKey = key;
+  const div = document.createElement('div');
+  div.className = 'day-divider';
+  div.textContent = dayLabel(ts);
+  messagesEl.appendChild(div);
+}
+
 function renderMessage(m) {
   const existing = document.getElementById('msg-' + m.id);
   if (existing) {
@@ -28,6 +52,7 @@ function renderMessage(m) {
     }
     return;
   }
+  ensureDayDivider(m.ts);
   messagesEl.appendChild(buildMessage(m));
   messagesEl.scrollTop = messagesEl.scrollHeight;
   if (m.ts > (lastTs || '')) lastTs = m.ts;
@@ -73,18 +98,31 @@ function buildMessage(m) {
   }
 
   div.appendChild(bubble);
+  const canDelete = !m.deleted && me &&
+    ((m.senderKind === 'member' && m.senderId === me.memberId) ||
+      (me.role === 'admin' && m.senderKind !== 'system'));
+
   if (m.senderKind !== 'system') {
     const meta = document.createElement('div');
     meta.className = 'meta';
     meta.textContent = `${m.senderName} · ${fmtTime(m.ts)}`;
+    if (canDelete) {
+      // Discoverable delete: tap the bubble to reveal, then confirm.
+      const chip = document.createElement('button');
+      chip.className = 'delete-chip';
+      chip.textContent = 'Delete';
+      chip.hidden = true;
+      chip.addEventListener('click', (e) => { e.stopPropagation(); confirmDelete(m); });
+      meta.appendChild(chip);
+      bubble.addEventListener('click', (e) => {
+        if (e.target.closest('audio, a')) return;
+        chip.hidden = !chip.hidden;
+      });
+    }
     div.appendChild(meta);
   }
 
-  // WhatsApp-style delete: long-press your own message (the admin can delete
-  // any member or Otto message).
-  const canDelete = !m.deleted && me &&
-    ((m.senderKind === 'member' && m.senderId === me.memberId) ||
-      (me.role === 'admin' && m.senderKind !== 'system'));
+  // Long-press (or right-click on desktop) also works, WhatsApp-style.
   if (canDelete) attachLongPress(bubble, () => confirmDelete(m));
   return div;
 }
