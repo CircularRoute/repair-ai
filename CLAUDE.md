@@ -15,6 +15,16 @@ like shops without storefronts; the spec explains why that nuance matters everyw
 doing anything. `otto_vertical_knowledge_sources_20260804.md` is the verified vertical
 research behind it. If this file and the spec ever disagree, the spec wins.
 
+## State of the build (2026-08-05)
+
+All six spec phases are BUILT, accepted, and live at https://otto.repairnow.app.
+`HANDOFF.md` is the current-state handoff: architecture, schedules, operational
+runbook, and open items. `decisions.md` holds every founder ruling (1-15),
+several of which supersede spec defaults (daily gated synthesis instead of
+weekly, Otto engagement rule, email allowlist sign-in via Brevo, message
+deletion, multi-language members, $20/day ceiling). Read both before changing
+anything.
+
 ## What gets built here
 
 A single deployed service (Node, no framework, SQLite, Render + persistent disk)
