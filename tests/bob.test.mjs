@@ -88,3 +88,15 @@ test('daily synthesis gate (ruling 15): quiet days and no-substance days skip', 
   setSetting(db2, 'bobSynthesisLastRunAt', new Date(now.getTime() - 3600000).toISOString());
   assert.equal(shouldRunDailySynthesis(db2, now).reason, 'already-ran');
 });
+
+test('mark publish guard: narration and fragments are refused, real documents pass cleaned', async () => {
+  const { cleanMarkDocument } = await import('../lib/mark.mjs');
+  // Real doc with leftover preamble: preamble cut, doc kept.
+  const doc = '# Market Landscape\n\n' + 'Substantive researched content with sources. '.repeat(20);
+  assert.equal(cleanMarkDocument('I will research this now.\n' + doc).startsWith('# Market Landscape'), true);
+  // Pure narration (seen live) is refused.
+  assert.throws(() => cleanMarkDocument('I will research the appliance repair market landscape. Let me start with parallel searches.'), /previous version kept/);
+  // A heading with almost nothing under it is refused too.
+  assert.throws(() => cleanMarkDocument('# Market Landscape\nTBD'), /previous version kept/);
+  assert.throws(() => cleanMarkDocument(''), /previous version kept/);
+});
