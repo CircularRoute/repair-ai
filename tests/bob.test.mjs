@@ -100,3 +100,10 @@ test('mark publish guard: narration and fragments are refused, real documents pa
   assert.throws(() => cleanMarkDocument('# Market Landscape\nTBD'), /previous version kept/);
   assert.throws(() => cleanMarkDocument(''), /previous version kept/);
 });
+
+test('mark publish guard: heading glued to narration without newline still passes', async () => {
+  const { cleanMarkDocument } = await import('../lib/mark.mjs');
+  const doc = '# Competitor Tracker\n\n' + 'Entries with sources and details. '.repeat(25);
+  const glued = 'Now the other notable entries.' + doc;
+  assert.equal(cleanMarkDocument(glued).startsWith('# Competitor Tracker'), true);
+});
