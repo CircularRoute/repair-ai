@@ -1257,6 +1257,17 @@ const server = createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true });
     }
 
+    // Operational visibility: the event log (already written everywhere via
+    // logEvent) was previously unreadable outside the DB file.
+    if (path === '/api/admin/events' && req.method === 'GET') {
+      if (!requireAdmin(req, res)) return;
+      const limit = Math.min(Number(url.searchParams.get('limit') || 50), 500);
+      const kind = url.searchParams.get('kind');
+      const rows = kind
+        ? db.prepare('SELECT * FROM events WHERE kind LIKE ? ORDER BY id DESC LIMIT ?').all(`${kind}%`, limit)
+        : db.prepare('SELECT * FROM events ORDER BY id DESC LIMIT ?').all(limit);
+      return sendJson(res, 200, { events: rows });
+    }
     if (path === '/api/admin/spend' && req.method === 'GET') {
       if (!requireAdmin(req, res)) return;
       return sendJson(res, 200, spendSummary(db));
